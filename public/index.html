@@ -63,6 +63,7 @@ th{ font-size:.7rem; text-transform:uppercase; letter-spacing:.05em; color:var(-
 td.n,th.n{ text-align:right; font-variant-numeric:tabular-nums; white-space:nowrap }
 tr.me td{ background:var(--amber-tint); font-weight:700 } tr.done td{ color:var(--mute) } tr.cur td{ background:var(--tint); font-weight:700 }
 .scroll{ overflow-x:auto }
+table.cmp{ margin-bottom:6px } table.cmp td:first-child{ white-space:nowrap } table.cmp th,table.cmp td{ padding:7px 5px } table.cmp .n{ text-align:right; width:52px; font-variant-numeric:tabular-nums }
 table.porty th,table.porty td{ padding:7px 5px } table.porty td.n,table.porty th.n{ width:46px }
 td.nw{ white-space:nowrap }
 .log{ display:flex; flex-direction:column }
@@ -214,10 +215,13 @@ function rysujGildie(){
 }
 function gFlota(w){
   var h = '<div class="stats"><div class="stat"><b>' + w.sila + '</b><span>Siła</span></div><div class="stat"><b>' + w.zasieg + '</b><span>Zasięg</span></div><div class="stat"><b>' + w.zwrot + '</b><span>Zwrotność</span></div></div>' +
-    '<p class="sub">Statków: <b>' + w.ileStatkow + ' z ' + w.limit + '</b>. Koszt naprawy całej floty: <b>' + w.naprawa + '</b>.</p><h2>Statki</h2>';
+    '<p class="sub">Statków: <b>' + w.ileStatkow + ' z ' + w.limit + '</b>. Koszt naprawy całej floty: <b>' + w.naprawa + '</b>.</p><h2>Statki</h2>' +
+    '<div class="scroll"><table class="cmp"><tr><th>Statek</th><th class="n">Cena</th><th class="n">Siła</th><th class="n">Zasięg</th><th class="n">Zwrot.</th><th class="n">Naprawa</th></tr>' +
+    w.statki.map(function(s){ return '<tr' + (s.ile ? ' class="cur"' : '') + '><td>' + esc(s.nazwa) + (s.ile ? ' <span class="small">×' + s.ile + '</span>' : '') + '</td><td class="n">' + s.cena + '</td><td class="n">' + s.sila + '</td><td class="n">' + s.zasieg + '</td><td class="n">' + s.zwrot + '</td><td class="n">' + s.naprawa + '</td></tr>'; }).join('') +
+    '</table></div><p class="small">Naprawa to koszt naprawy jednego statku po nieudanym ataku. Statystyki floty to suma wszystkich statków i budowli.</p>';
   w.statki.forEach(function(s){
     h += '<div class="card"><div class="row"><span class="name">' + esc(s.nazwa) + '</span>' + (s.ile ? '<span class="pill amb">macie: ' + s.ile + '</span>' : '') + '</div>' +
-      '<p class="sub">Siła ' + s.sila + ' · Zasięg ' + s.zasieg + ' · Zwrotność ' + s.zwrot + ' · naprawa ' + s.naprawa + '</p><div class="btns">' +
+      '<p class="sub">Siła ' + s.sila + ' · Zasięg ' + s.zasieg + ' · Zwrotność ' + s.zwrot + ' · naprawa kosztuje ' + s.naprawa + '</p><div class="btns">' +
       '<button class="btn" data-kup="' + esc(s.id) + '" data-nazwa="' + esc(s.nazwa) + '" data-cena="' + s.cena + '"' + (s.powod ? ' disabled' : '') + '>Kup za ' + s.cena + '</button>' +
       (s.ile && !w.zamkniete ? '<button class="btn ghost" data-sprzedaj="' + esc(s.id) + '" data-nazwa="' + esc(s.nazwa) + '" data-zwrot="' + s.zwrotZaSprzedaz + '">Sprzedaj za ' + s.zwrotZaSprzedaz + '</button>' : '') +
       (s.powod ? '<span class="why">' + esc(s.powod) + '</span>' : '') + '</div></div>';
