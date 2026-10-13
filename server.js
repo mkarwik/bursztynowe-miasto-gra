@@ -10,8 +10,13 @@ const PORT = Number(process.env.PORT || 3000);
 const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, 'data');
 const HASLO_KADRY = String(process.env.HASLO_KADRY || 'kadra-zmien-mnie').trim();
 const STREFA = process.env.STREFA || 'Europe/Warsaw';
-const AI_KLUCZ = String(process.env.ANTHROPIC_API_KEY || '').trim();
-const AI_MODEL = process.env.ANTHROPIC_MODEL || 'claude-sonnet-5-5';
+// AI: działa z kluczem Anthropic albo OpenAI (pierwszy znaleziony). Bez klucza nadzór działa na samych regułach.
+const KLUCZ_ANTHROPIC = String(process.env.ANTHROPIC_API_KEY || '').trim();
+const KLUCZ_OPENAI = String(process.env.OPENAI_API_KEY || '').trim();
+const AI_DOSTAWCA = KLUCZ_ANTHROPIC ? 'anthropic' : KLUCZ_OPENAI ? 'openai' : '';
+const AI_KLUCZ = KLUCZ_ANTHROPIC || KLUCZ_OPENAI;
+const OPENAI_URL = process.env.OPENAI_URL || 'https://api.openai.com/v1/chat/completions';
+const AI_MODEL = AI_DOSTAWCA === 'openai' ? (process.env.OPENAI_MODEL || 'gpt-5-mini') : (process.env.ANTHROPIC_MODEL || 'claude-sonnet-5-5');
 const AI_CO_MIN = Number(process.env.AI_CO_MIN ?? 15);
 const PLIK_KONFIG = path.join(DATA_DIR, 'config.json');
 const PLIK_STAN = path.join(DATA_DIR, 'state.json');
@@ -215,7 +220,7 @@ function widok(r) {
     }),
     dziennik: dziennik.slice(-300).reverse().map(d => ({ czas: d.czas, gildia: d.g == null ? '' : (cfg.gildie[d.g] || { nazwa: '?' }).nazwa, g: d.g, kto: d.kto, opis: d.opis, wynik: d.wynik, ok: d.ok, delta: d.delta, b: d.b })),
     ileZdarzen: dziennik.length, stany, konfiguracja: cfg, hasloKadryDomyslne: HASLO_KADRY === 'kadra-zmien-mnie',
-    zgloszenia: zglDlaKadry(), nadzor: nadzor(), ai: { jest: !!AI_KLUCZ, tekst: ai.tekst, czas: ai.czas, blad: ai.blad, trwa: ai.trwa, co: AI_CO_MIN } };
+    zgloszenia: zglDlaKadry(), nadzor: nadzor(), ai: { jest: !!AI_KLUCZ, dostawca: AI_DOSTAWCA, model: AI_KLUCZ ? AI_MODEL : '', tekst: ai.tekst, czas: ai.czas, blad: ai.blad, trwa: ai.trwa, co: AI_CO_MIN } };
 }
 
 function api(body) {
@@ -277,7 +282,7 @@ function api(body) {
         wpis(null, 'kadra', 'Usunięcie zdjęć', { ok: true, msg: 'Usunięto zdjęć: ' + n + '.', delta: 0 });
         komunikat = { ok: true, tekst: 'Usunięto zdjęć z serwera: ' + n + '. Opisy i decyzje zostały.' };
       } else if (a.typ === 'ai') {
-        if (!AI_KLUCZ) komunikat = { ok: false, tekst: 'Brak klucza AI. Dodajcie zmienną ANTHROPIC_API_KEY w Coolify.' };
+        if (!AI_KLUCZ) komunikat = { ok: false, tekst: 'Brak klucza AI. Dodajcie w Coolify zmienną OPENAI_API_KEY albo ANTHROPIC_API_KEY.' };
         else if (ai.trwa) komunikat = { ok: true, tekst: 'Analiza już trwa.' };
         else { analizaAI(); komunikat = { ok: true, tekst: 'Analiza ruszyła. Wynik pojawi się tu za kilkanaście sekund.' }; }
       } else return { blad: 'Nieznane polecenie kadry.' };
@@ -286,37 +291,59 @@ function api(body) {
   return { widok: widok(r), komunikat };
 }
 
-// ---------- analiza AI (opcjonalna, gdy jest ANTHROPIC_API_KEY) ----------
+// ---------- analiza AI (opcjonalna, gdy jest klucz OpenAI albo Anthropic) ----------
 const AI_SYSTEM = 'Jesteś asystentem kadry harcerskiej gry miejskiej „Bursztynowe Miasto” (10 gildii po 4 osoby, Gdańsk, ok. 2,5 h). ' +
-  'Gildie zarabiają bursztyn na punktach żywych (ocena punktowego 0–55), martwych (pytanie, 2 próby) i znajdźkach, kupują statki i budowle, atakują po kolei 10 portów. ' +
-  'Dostajesz migawkę stanu gry: wyniki reguł nadzoru, tabelę gildii, punkty i ostatnie wpisy dziennika. ' +
-  'Napisz po polsku 3–7 krótkich punktów dla kadry: najpierw to, co wymaga działania teraz (kto, co zrobić), potem obserwacje. ' +
-  'Konkretnie, z nazwami gildii i punktów. Nie powtarzaj wszystkich alertów, wybierz ważne i dodaj to, czego reguły nie widzą (wzorce, przyczyny). ' +
-  'Jeśli wszystko idzie dobrze, powiedz to jednym zdaniem. Bez wstępów i bez formatowania poza myślnikami.';
+  'Gildie zarabiają bursztyn na punktach żywych (ocena punktowego 0–55), martwych (pytanie, 2 próby) i znajdźkach (kod albo zdjęcie sprawdzane przez kadrę), kupują statki i budowle, atakują po kolei 10 portów. ' +
+  'Ranking: liczba portów, przy remisie bursztyn zdobyty w całej grze. Dostajesz migawkę: reguły nadzoru, dane gildii, punkty i ostatnie wpisy dziennika. ' +
+  'Napisz po polsku raport dla kadry w trzech częściach, każda z nagłówkiem wielkimi literami w osobnym wierszu:\n' +
+  'STAN GRY: 2–3 zdania, jak idzie całość (tempo względem symulacji, ile zostało do końca, czy walka o czołówkę jest wyrównana).\n' +
+  'KTO JAK SOBIE RADZI: po jednym krótkim wierszu na gildię, w kolejności rankingu, zaczynając od myślnika: miejsce, nazwa, porty, krótka ocena (prowadzi / dobrze / środek / słabo / kłopot) i dlaczego, np. dużo punktów ale słaba flota, długo bez punktu, seria porażek, nie wydaje bursztynu.\n' +
+  'CO ZROBIĆ TERAZ: 0–4 konkretne działania (kto, co), tylko gdy naprawdę trzeba. Jeśli nic, napisz „Nic pilnego.”\n' +
+  'Pisz zwięźle i konkretnie, z nazwami gildii i punktów. Nie wymyślaj danych, których nie ma w migawce. Bez markdownu (bez gwiazdek i krzyżyków).';
 function migawka() {
   const n = nadzor();
   return JSON.stringify({ teraz: n.teraz, faza: n.faza, minutaGry: n.minutaGry, koniec: n.koniec, tempo: n.tempo, urzadzenia: n.urzadzenia,
     alerty: n.alerty.map(a => a.poziom + ' | ' + a.kto + ' | ' + a.tekst),
-    gildie: n.gildie.map(g => ({ nazwa: g.nazwa, porty: g.porty, zdobyty: g.zdobyty, skarbiec: g.bursztyn, nieudaneZRzedu: g.nieudane, minOdOtwarciaAplikacji: g.widziana, minOdPunktu: g.ostatniPunkt, minOdZakupu: g.ostatniZakup, minOdAtaku: g.ostatniAtak, zakupy: g.zakupy, korekty: g.korekty })),
+    gildie: n.gildie.map(g => ({ miejsce: (E.ranking(cfg, stany).find(x => x.i === g.i) || {}).miejsce, nazwa: g.nazwa, porty: g.porty, zdobyty: g.zdobyty, flota: (s => 'Siła ' + s.sila + ', Zasięg ' + s.zasieg + ', Zwrotność ' + s.zwrot + ', statków ' + s.ile)(E.staty(cfg, stany[g.i])), budowle: cfg.budowle.filter(q => stany[g.i].bud[q.id]).map(q => q.nazwa), martweZaliczone: Object.keys(stany[g.i].md).length, wizytyZywe: Object.values(stany[g.i].zy).reduce((a, b) => a + b, 0), znajdzki: Object.keys(stany[g.i].zn).length + (stany[g.i].zf || 0), skarbiec: g.bursztyn, nieudaneZRzedu: g.nieudane, minOdOtwarciaAplikacji: g.widziana, minOdPunktu: g.ostatniPunkt, minOdZakupu: g.ostatniZakup, minOdAtaku: g.ostatniAtak, zakupy: g.zakupy, korekty: g.korekty })),
     punktyZywe: n.zywe.map(p => ({ nazwa: p.nazwa, wizyt: p.wizyt, wizyt30min: p.ost30, srednia: p.srednia, minOdWpisu: p.ostatniWpis })),
     punktyMartwe: n.martwe.map(p => ({ nazwa: p.nazwa, zaliczyli: p.zaliczyli, gildieZle: p.gildieZle, najczestszaZla: p.czesta })),
-    znajdzki: n.znajdzki.map(z => z.ile),
+    znajdzki: n.znajdzki.map(z => z.ile), zdjeciaCzekaja: zgloszenia.filter(z => z.stan === 'czeka').length,
     dziennik: dziennik.slice(-40).map(d => [d.czas.slice(0, 5), d.g == null ? '-' : (cfg.gildie[d.g] || {}).nazwa, d.kto, d.opis, d.ok ? d.wynik : 'ODRZUCONE: ' + d.wynik].join(' | ')) });
+}
+async function zapytajAI(tresc) {
+  const ctl = new AbortController(); const tm = setTimeout(() => ctl.abort(), 90000);
+  try {
+    if (AI_DOSTAWCA === 'anthropic') {
+      const r = await fetch('https://api.anthropic.com/v1/messages', { method: 'POST', signal: ctl.signal,
+        headers: { 'content-type': 'application/json', 'x-api-key': AI_KLUCZ, 'anthropic-version': '2023-06-01' },
+        body: JSON.stringify({ model: AI_MODEL, max_tokens: 1500, system: AI_SYSTEM, messages: [{ role: 'user', content: tresc }] }) });
+      const o = await r.json();
+      if (!r.ok) throw new Error((o.error && o.error.message) || ('HTTP ' + r.status));
+      return (o.content || []).filter(c => c.type === 'text').map(c => c.text).join('\n').trim();
+    }
+    // OpenAI, Chat Completions. Modele GPT-5 chcą max_completion_tokens; starsze (gpt-4o) też je przyjmują.
+    const zapytaj = async extra => {
+      const r = await fetch(OPENAI_URL, { method: 'POST', signal: ctl.signal,
+        headers: { 'content-type': 'application/json', authorization: 'Bearer ' + AI_KLUCZ },
+        body: JSON.stringify(Object.assign({ model: AI_MODEL, max_completion_tokens: 4000, messages: [{ role: 'system', content: AI_SYSTEM }, { role: 'user', content: tresc }] }, extra)) });
+      return { r, o: await r.json() };
+    };
+    let { r, o } = await zapytaj({ reasoning_effort: 'low' });
+    // model bez rozumowania (np. gpt-4o) odrzuca reasoning_effort: spróbuj jeszcze raz bez niego
+    if (!r.ok && o.error && /reasoning/i.test(String(o.error.message) + String(o.error.param))) ({ r, o } = await zapytaj({}));
+    if (!r.ok) throw new Error((o.error && o.error.message) || ('HTTP ' + r.status));
+    const t = (((o.choices || [])[0] || {}).message || {}).content;
+    if (!t) throw new Error('Pusta odpowiedź modelu' + (o.choices && o.choices[0] && o.choices[0].finish_reason === 'length' ? ' (za mało miejsca na odpowiedź)' : ''));
+    return String(t).trim();
+  } finally { clearTimeout(tm); }
 }
 async function analizaAI() {
   ai.trwa = true; ai.blad = ''; ai.ostatnio = Date.now();
   try {
-    const ctl = new AbortController(); const tm = setTimeout(() => ctl.abort(), 60000);
-    const r = await fetch('https://api.anthropic.com/v1/messages', { method: 'POST', signal: ctl.signal,
-      headers: { 'content-type': 'application/json', 'x-api-key': AI_KLUCZ, 'anthropic-version': '2023-06-01' },
-      body: JSON.stringify({ model: AI_MODEL, max_tokens: 900, system: AI_SYSTEM, messages: [{ role: 'user', content: 'Migawka gry:\n' + migawka() }] }) });
-    clearTimeout(tm);
-    const o = await r.json();
-    if (!r.ok) throw new Error((o.error && o.error.message) || ('HTTP ' + r.status));
-    ai.tekst = (o.content || []).filter(c => c.type === 'text').map(c => c.text).join('\n').trim();
+    ai.tekst = await zapytajAI('Migawka gry:\n' + migawka());
     ai.czas = teraz().czas.slice(0, 5);
   } catch (e) {
-    ai.blad = 'Analiza AI nie wyszła: ' + String(e.message || e).slice(0, 200);
+    ai.blad = 'Analiza AI nie wyszła: ' + String(e.name === 'AbortError' ? 'brak odpowiedzi w 90 s' : (e.message || e)).slice(0, 200);
     console.error(ai.blad);
   }
   ai.trwa = false;

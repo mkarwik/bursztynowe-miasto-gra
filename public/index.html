@@ -65,7 +65,7 @@ td.n,th.n{ text-align:right; font-variant-numeric:tabular-nums; white-space:nowr
 tr.me td{ background:var(--amber-tint); font-weight:700 } tr.done td{ color:var(--mute) } tr.cur td{ background:var(--tint); font-weight:700 }
 .scroll{ overflow-x:auto }
 label.btn{ display:inline-flex; align-items:center } .zdj img{ display:block; width:100%; max-height:420px; object-fit:contain; background:var(--tint); margin:8px 0 } .zdj .opis{ font-size:1.05rem; margin:6px 0 } .foto{ margin:8px 0; display:flex; flex-direction:column; gap:8px; align-items:flex-start } .foto img{ max-width:100%; max-height:260px; border:1px solid var(--line) } textarea{ width:100%; padding:10px; border:1px solid var(--line); background:#fff } .zgl{ margin-top:10px; border-top:1px solid var(--line); padding-top:6px } .zgl .row{ padding:5px 0; align-items:flex-start }
-.alert{ border-left:5px solid var(--line) } .alert.zle{ border-left-color:var(--bad); background:var(--bad-tint) } .alert.uwaga{ border-left-color:var(--amber) } .alert p{ margin-top:4px; white-space:pre-line } .btn.mini{ min-height:32px; padding:4px 12px; font-size:.85rem } .ai{ white-space:pre-wrap; margin-top:6px }
+.alert{ border-left:5px solid var(--line) } .alert.zle{ border-left-color:var(--bad); background:var(--bad-tint) } .alert.uwaga{ border-left-color:var(--amber) } .alert p{ margin-top:4px; white-space:pre-line } .btn.mini{ min-height:32px; padding:4px 12px; font-size:.85rem } .ai{ white-space:pre-wrap; margin-top:6px; line-height:1.45 }
 table.cmp{ margin-bottom:6px } table.atk td{ vertical-align:middle } .btns.col{ flex-direction:column; align-items:stretch } .zasady ul{ margin:8px 0 0 18px; padding:0 } .zasady li{ margin:4px 0; font-size:.92rem } .zasady summary{ cursor:pointer } table.cmp td:first-child{ white-space:nowrap } table.cmp th,table.cmp td{ padding:7px 5px } table.cmp .n{ text-align:right; width:52px; font-variant-numeric:tabular-nums }
 table.porty th,table.porty td{ padding:7px 5px } table.porty td.n,table.porty th.n{ width:46px }
 td.nw{ white-space:nowrap }
@@ -441,10 +441,11 @@ function temu(x){ return x == null ? '—' : x < 1 ? 'teraz' : x + ' min'; }
 function kNadzor(w, al, ukryte){
   var n = w.nadzor, ai = w.ai || {}, fazy = { przed:'przed startem', trwa:'gra trwa', ostatnie:'ostatnie 10 minut', koniec:'po grze' };
   var h = '<h2>Nadzór</h2><p class="sub">' + esc(fazy[n.faza] || '') + (n.faza === 'trwa' || n.faza === 'ostatnie' ? ', minuta gry ' + n.minutaGry : '') + '. Telefony w ostatnich 10 min: kadra ' + n.urzadzenia.kadra + ', punktowi ' + n.urzadzenia.punktowi + ', gildie ' + n.urzadzenia.gildie + '.</p>';
-  if (ai.jest) h += '<div class="card"><div class="row"><span class="name">Ocena AI</span>' + (ai.czas ? '<span class="pill">' + esc(ai.czas) + '</span>' : '') + '</div>' +
-    (ai.tekst ? '<p class="ai">' + esc(ai.tekst) + '</p>' : '<p class="sub">Jeszcze nie było analizy.' + (ai.co > 0 ? ' W trakcie gry robi się sama co ' + ai.co + ' min.' : '') + '</p>') +
+  if (ai.jest) h += '<div class="card"><div class="row"><span class="name">Raport AI</span>' + (ai.czas ? '<span class="pill">' + esc(ai.czas) + '</span>' : '') + '</div>' +
+    (ai.tekst ? '<p class="ai">' + esc(ai.tekst) + '</p><p class="small">Model: ' + esc(ai.model) + '. AI może się mylić, sprawdzajcie w tabelach niżej.</p>' : '<p class="sub">Jeszcze nie było analizy.' + (ai.co > 0 ? ' W trakcie gry robi się sama co ' + ai.co + ' min.' : '') + '</p>') +
     (ai.blad ? '<p class="why">' + esc(ai.blad) + '</p>' : '') +
     '<div class="btns" style="margin-top:8px"><button class="btn ghost" id="aiBtn"' + (ai.trwa ? ' disabled' : '') + '>' + (ai.trwa ? 'AI analizuje…' : 'Przeanalizuj teraz') + '</button></div></div>';
+  else h += '<p class="small">Raport AI wyłączony: dodajcie w Coolify zmienną OPENAI_API_KEY (albo ANTHROPIC_API_KEY).</p>';
   if (!al.length) h += '<div class="card"><p><b>Nic niepokojącego.</b></p></div>';
   al.forEach(function(a){ h += '<div class="card alert ' + a.poziom + '"><div class="row"><span class="name">' + esc(a.kto) + '</span><button class="btn ghost mini" data-wiem="' + esc(a.id) + '">Wiem</button></div><p>' + esc(a.tekst) + '</p></div>'; });
   if (ukryte) h += '<p class="small">Ukryte (Wiem): ' + ukryte + '. Wracają po 30 min. <a href="#" id="pokazUkryte">Pokaż wszystkie</a></p>';

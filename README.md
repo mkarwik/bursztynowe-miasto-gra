@@ -26,7 +26,7 @@ Ustawienia: `zdjecia` (włącza zgłoszenia), `zdjecia_limit` (ile znajdziek ze 
 
 Zakładka **Nadzór** w widoku kadry działa bez żadnych ustawień. Reguły sprawdzają na bieżąco: gildie bez kontaktu, gildie w tyle albo podejrzanie szybkie, długi dług, serie porażek, punkty martwe z dużą liczbą złych odpowiedzi (z najczęstszą złą odpowiedzią), błędne kody znajdziek, punkty żywe, które dawno nic nie wpisały, różnice w ocenianiu i tempo całej gry w porównaniu z symulacją. Przed grą pokazuje listę rzeczy do uzupełnienia.
 
-Podsumowanie AI jest opcjonalne. W Coolify dodaj zmienną **ANTHROPIC_API_KEY** z kluczem z console.anthropic.com. Wtedy w Nadzorze pojawia się „Ocena AI”: na przycisk i automatycznie co `AI_CO_MIN` minut w trakcie gry (domyślnie 15, 0 wyłącza; działa przy `pilnuj_godzin` na „tak”). Model ustawia `ANTHROPIC_MODEL` (domyślnie `claude-sonnet-5-5`). Do AI trafia stan gry i ostatnie wpisy dziennika, bez haseł.
+Raport AI jest opcjonalny. W Coolify dodaj zmienną **OPENAI_API_KEY** (klucz z platform.openai.com) albo **ANTHROPIC_API_KEY** (console.anthropic.com); gdy są oba, używany jest Anthropic. W Nadzorze pojawia się „Raport AI”: stan gry, kto jak sobie radzi i co zrobić teraz. Robi się na przycisk i automatycznie co `AI_CO_MIN` minut w trakcie gry (domyślnie 15, 0 wyłącza; automat działa przy `pilnuj_godzin` na „tak”). Model ustawia `OPENAI_MODEL` (domyślnie `gpt-5-mini`) albo `ANTHROPIC_MODEL` (domyślnie `claude-sonnet-5-5`). Do AI trafia stan gry i ostatnie wpisy dziennika, bez haseł.
 
 Informacje, kto był w aplikacji, serwer trzyma tylko w pamięci, więc po restarcie liczą się od nowa.
 
