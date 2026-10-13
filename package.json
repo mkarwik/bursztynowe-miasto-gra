@@ -1,0 +1,9 @@
+{
+  "name": "bursztynowe-miasto",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Gra ekonomiczna Bursztynowe Miasto: aplikacja dla gildii, punktowych i kadry",
+  "main": "server.js",
+  "scripts": { "start": "node server.js", "test": "node --test test/*.test.js" },
+  "engines": { "node": ">=20" }
+}

@@ -1,0 +1,467 @@
+<!doctype html>
+<html lang="pl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#1d4f5a">
+<title>Bursztynowe Miasto</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Alegreya:wght@700;800&family=Alegreya+Sans:wght@400;500;700&display=swap">
+<style>
+/* Układ: jedna kolumna na telefon, górny pasek ze skarbcem, dolny pasek zakładek. Jasne tło, bo gra toczy się na dworze. */
+:root{
+  --ink:#16262d; --sea:#1d4f5a; --sea2:#2d6b78; --mute:#5c6b70; --line:#cfd8d9; --tint:#eef3f3; --paper:#f7f9f9; --card:#ffffff;
+  --amber:#b4730c; --amber2:#e9a23b; --amber-tint:#fbf3e2; --ok:#1f7a4a; --ok-tint:#e5f4ec; --bad:#b3382c; --bad-tint:#fbe9e7;
+  --display:"Alegreya",Georgia,serif; --body:"Alegreya Sans",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+}
+*{ box-sizing:border-box }
+html,body{ margin:0; background:var(--paper); color:var(--ink); font-family:var(--body); font-size:17px; line-height:1.35; -webkit-text-size-adjust:100% }
+button,input,select,textarea{ font:inherit; color:inherit }
+h1,h2,h3{ font-family:var(--display); margin:0; color:var(--sea); line-height:1.1 }
+h2{ font-size:1.35rem } h3{ font-size:1.1rem }
+p{ margin:0 }
+.wrap{ max-width:720px; margin:0 auto; padding:14px 16px calc(84px + env(safe-area-inset-bottom,0px)); display:flex; flex-direction:column; gap:14px }
+.top{ position:sticky; top:0; z-index:5; background:var(--sea); color:#fff; padding:calc(8px + env(safe-area-inset-top,0px)) 16px 8px }
+.top .in{ max-width:720px; margin:0 auto; display:flex; align-items:center; gap:10px; justify-content:space-between }
+.top .who{ font-family:var(--display); font-weight:800; font-size:1.15rem; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap }
+.top .nums{ display:flex; gap:14px; flex:none }
+.top .num{ text-align:right; line-height:1.05 }
+.top .num b{ display:block; font-size:1.25rem; font-variant-numeric:tabular-nums }
+.top .num span{ font-size:.68rem; letter-spacing:.06em; text-transform:uppercase; opacity:.8 }
+.top .num.amb b{ color:var(--amber2) }
+.banner{ background:var(--amber-tint); border-left:5px solid var(--amber); padding:10px 12px; font-weight:500 }
+.banner.bad{ background:var(--bad-tint); border-color:var(--bad) }
+.tabs{ position:fixed; left:0; right:0; bottom:0; z-index:6; background:#fff; border-top:1px solid var(--line); padding-bottom:env(safe-area-inset-bottom,0px) }
+.tabs .in{ max-width:720px; margin:0 auto; display:flex }
+.tabs button{ flex:1; border:0; background:none; padding:12px 2px 10px; font-size:.82rem; font-weight:700; color:var(--mute); border-top:3px solid transparent; cursor:pointer; min-width:0 }
+.tabs button[aria-selected="true"]{ color:var(--sea); border-top-color:var(--amber) }
+.card{ background:var(--card); border:1px solid var(--line); padding:12px 14px; display:flex; flex-direction:column; gap:8px }
+.card.next{ border:2px solid var(--sea) }
+.row{ display:flex; gap:10px; align-items:center; justify-content:space-between; flex-wrap:wrap }
+.row > *{ min-width:0 }
+.name{ font-weight:700; font-size:1.05rem }
+.sub{ color:var(--mute); font-size:.92rem }
+.stats{ display:grid; grid-template-columns:repeat(3,1fr); gap:8px }
+.stat{ background:var(--tint); padding:8px 10px; text-align:center }
+.stat b{ display:block; font-size:1.5rem; font-variant-numeric:tabular-nums; color:var(--sea) }
+.stat span{ font-size:.72rem; text-transform:uppercase; letter-spacing:.05em; color:var(--mute) }
+.stats.five{ grid-template-columns:repeat(5,1fr) } .stats.five .stat b{ font-size:1.25rem }
+@media (max-width:420px){ .stats.five{ grid-template-columns:repeat(3,1fr) } }
+.btn{ border:0; background:var(--sea); color:#fff; font-weight:700; padding:11px 16px; min-height:46px; cursor:pointer; border-radius:3px }
+.btn.amber{ background:var(--amber) } .btn.ghost{ background:#fff; color:var(--sea); border:1.5px solid var(--sea) } .btn.bad{ background:var(--bad) }
+.btn:disabled{ background:#c7d0d1; color:#6f7c80; cursor:not-allowed } .btn.ghost:disabled{ background:#fff; border-color:#c7d0d1 }
+.btn:focus-visible,.tabs button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{ outline:3px solid var(--amber2); outline-offset:2px }
+.btns{ display:flex; gap:8px; flex-wrap:wrap; align-items:center }
+.why{ color:var(--bad); font-size:.88rem; font-weight:500 }
+.pill{ display:inline-block; padding:2px 9px; font-size:.8rem; font-weight:700; border-radius:20px; background:var(--tint); color:var(--sea) }
+.pill.ok{ background:var(--ok-tint); color:var(--ok) } .pill.bad{ background:var(--bad-tint); color:var(--bad) } .pill.amb{ background:var(--amber-tint); color:var(--amber) }
+input[type=text],input[type=password],input[type=number],select,textarea{ border:1.5px solid var(--line); background:#fff; padding:10px 12px; min-height:46px; border-radius:3px; width:100% }
+.field{ display:flex; gap:8px } .field input{ flex:1; min-width:0 }
+table{ border-collapse:collapse; width:100%; font-size:.92rem }
+th,td{ text-align:left; padding:7px 8px; border-bottom:1px solid var(--line); vertical-align:top }
+th{ font-size:.7rem; text-transform:uppercase; letter-spacing:.05em; color:var(--mute); background:var(--tint) }
+td.n,th.n{ text-align:right; font-variant-numeric:tabular-nums; white-space:nowrap }
+tr.me td{ background:var(--amber-tint); font-weight:700 } tr.done td{ color:var(--mute) } tr.cur td{ background:var(--tint); font-weight:700 }
+.scroll{ overflow-x:auto }
+table.porty th,table.porty td{ padding:7px 5px } table.porty td.n,table.porty th.n{ width:46px }
+td.nw{ white-space:nowrap }
+.log{ display:flex; flex-direction:column }
+.log .e{ padding:8px 0; border-bottom:1px solid var(--line); display:grid; grid-template-columns:54px 1fr; gap:8px }
+.log .e .t{ color:var(--mute); font-variant-numeric:tabular-nums } .log .e.no .w{ color:var(--bad) }
+.login{ min-height:100vh; display:flex; align-items:center; justify-content:center; padding:24px 16px }
+.login .box{ width:100%; max-width:380px; display:flex; flex-direction:column; gap:14px }
+.login h1{ font-size:2.3rem; color:var(--ink) } .eyebrow{ font-size:.75rem; letter-spacing:.14em; text-transform:uppercase; color:var(--amber); font-weight:700 }
+.modal{ position:fixed; inset:0; z-index:20; background:rgba(22,38,45,.55); display:flex; align-items:center; justify-content:center; padding:16px }
+.modal .box{ background:#fff; width:100%; max-width:420px; padding:18px; display:flex; flex-direction:column; gap:14px; border-top:6px solid var(--amber) }
+.modal .box.win{ border-top-color:var(--ok) } .modal .box.lose{ border-top-color:var(--bad) }
+.dice{ display:flex; gap:10px; justify-content:center }
+.die{ width:58px; height:58px; border:2.5px solid var(--ink); border-radius:10px; display:flex; align-items:center; justify-content:center; font-family:var(--display); font-weight:800; font-size:2rem; background:#fff }
+.die.drop{ opacity:.35; text-decoration:line-through }
+.toast{ position:fixed; left:16px; right:16px; bottom:calc(76px + env(safe-area-inset-bottom,0px)); z-index:15; max-width:688px; margin:0 auto; padding:12px 14px; background:var(--ok); color:#fff; font-weight:500; box-shadow:0 4px 14px rgba(0,0,0,.25) }
+.toast.bad{ background:var(--bad) }
+.grid2{ display:grid; grid-template-columns:1fr 1fr; gap:8px } @media (max-width:520px){ .grid2{ grid-template-columns:1fr } }
+details summary{ cursor:pointer; font-weight:700; color:var(--sea); padding:6px 0 }
+.cfg table input{ min-height:38px; padding:6px 8px; min-width:70px } .cfg td{ padding:4px }
+.small{ font-size:.88rem; color:var(--mute) }
+.edg{ display:grid; grid-template-columns:1fr 1fr; gap:8px 12px } @media (max-width:480px){ .edg{ grid-template-columns:1fr } }
+.edl{ display:flex; flex-direction:column; gap:3px; font-size:.9rem; color:var(--mute) } .edl input{ color:var(--ink) }
+.edc{ display:flex; align-items:center; gap:10px; min-height:44px; font-weight:500 } .edc input{ width:22px; height:22px; flex:none }
+@media (prefers-reduced-motion:no-preference){ .modal .box{ animation:pop .16s ease-out } @keyframes pop{ from{ transform:scale(.96); opacity:.6 } to{ transform:none; opacity:1 } } }
+</style>
+</head>
+<body>
+<div id="app"></div>
+<div id="warstwa"></div>
+<script>
+'use strict';
+var S = { haslo: '', w: null, tab: '', punkt: null, filtr: '', cfgEdycja: null, zajete: false };
+var $app = document.getElementById('app'), $war = document.getElementById('warstwa');
+function esc(s){ return String(s == null ? '' : s).replace(/[&<>"']/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
+function pam(k, v){ try{ if (v === undefined) return localStorage.getItem(k); if (v === null) localStorage.removeItem(k); else localStorage.setItem(k, v); }catch(e){} return null; }
+
+function api(akcja){
+  return fetch('/api', { method:'POST', headers:{'content-type':'application/json'}, body: JSON.stringify({ haslo: S.haslo, akcja: akcja || null }) })
+    .then(function(r){ return r.json(); });
+}
+function odswiez(cicho){
+  if (!S.haslo) return Promise.resolve();
+  return api(null).then(function(o){
+    if (o.blad){ if (o.zleHaslo) wyloguj(o.blad); else if (!cicho) toast(o.blad, true); return; }
+    S.w = o.widok; if (!cicho || moznaPrzerysowac()) rysuj();
+  }).catch(function(){ if (!cicho) toast('Brak połączenia z serwerem. Sprawdźcie internet.', true); });
+}
+function moznaPrzerysowac(){
+  if ($war.innerHTML) return false;
+  var a = document.activeElement; if (a && /^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName)) return false;
+  var pola = $app.querySelectorAll('input[type=text],input[type=number],textarea');
+  for (var i = 0; i < pola.length; i++) if (pola[i].value && !pola[i].hasAttribute('data-stale')) return false;
+  if (S.w && S.w.rola === 'kadra' && (S.tab === 'cennik' || S.tab === 'korekta')) return false;
+  return true;
+}
+function wykonaj(akcja){
+  if (S.zajete) return; S.zajete = true; zamknij();
+  api(akcja).then(function(o){
+    S.zajete = false;
+    if (o.blad){ if (o.zleHaslo) return wyloguj(o.blad); toast(o.blad, true); return; }
+    S.w = o.widok; if (akcja && akcja.typ === 'zapisz_konfiguracje' && o.komunikat && o.komunikat.ok){ S.cfgEdycja = null; S.cfgOtwarte = null; }
+    rysuj();
+    var k = o.komunikat; if (!k) return;
+    if (k.atak) wynikAtaku(k); else toast(k.tekst, !k.ok);
+  }).catch(function(){ S.zajete = false; toast('Nie udało się wysłać. Sprawdźcie internet i spróbujcie jeszcze raz.', true); });
+}
+var toastT = null;
+function toast(tekst, zle){
+  var d = document.getElementById('toast'); if (d) d.remove();
+  d = document.createElement('div'); d.id = 'toast'; d.className = 'toast' + (zle ? ' bad' : ''); d.setAttribute('role', 'status'); d.textContent = tekst;
+  document.body.appendChild(d); clearTimeout(toastT); toastT = setTimeout(function(){ d.remove(); }, zle ? 7000 : 4500);
+  d.onclick = function(){ d.remove(); };
+}
+function zamknij(){ $war.innerHTML = ''; }
+function potwierdz(tytul, opis, etykieta, akcja, klasa){
+  $war.innerHTML = '<div class="modal" role="dialog" aria-modal="true"><div class="box"><h2>' + esc(tytul) + '</h2>' + (opis ? '<p>' + opis + '</p>' : '') +
+    '<div class="btns"><button class="btn ' + (klasa || 'amber') + '" id="mTak">' + esc(etykieta) + '</button><button class="btn ghost" id="mNie">Anuluj</button></div></div></div>';
+  document.getElementById('mTak').onclick = function(){ wykonaj(akcja); };
+  document.getElementById('mNie').onclick = zamknij;
+  document.getElementById('mTak').focus();
+}
+function wynikAtaku(k){
+  var kosci = k.kosci || [], min = kosci.length === 3 ? Math.min.apply(null, kosci) : null, odrzucona = false;
+  var h = kosci.map(function(v){ var d = (min !== null && v === min && !odrzucona); if (d) odrzucona = true; return '<div class="die' + (d ? ' drop' : '') + '">' + v + '</div>'; }).join('');
+  $war.innerHTML = '<div class="modal" role="dialog" aria-modal="true"><div class="box ' + (k.wygrana ? 'win' : 'lose') + '"><h2>' + (k.wygrana ? 'Port zdobyty!' : 'Atak nieudany') + '</h2>' +
+    '<div class="dice" aria-label="Wynik rzutu">' + h + '</div><p>' + esc(k.tekst) + '</p><div class="btns"><button class="btn" id="mOk">Dalej</button></div></div></div>';
+  document.getElementById('mOk').onclick = zamknij; document.getElementById('mOk').focus();
+}
+function wyloguj(komunikat){ S.haslo = ''; S.w = null; S.tab = ''; pam('bm_haslo', null); rysuj(); if (komunikat) toast(komunikat, true); }
+
+// ---------- rysowanie ----------
+function rysuj(){
+  if (!S.w) return rysujLogowanie();
+  if (S.w.rola === 'gildia') return rysujGildie();
+  if (S.w.rola === 'punktowy') return rysujPunktowego();
+  return rysujKadre();
+}
+function rysujLogowanie(){
+  $app.innerHTML = '<div class="login"><form class="box" id="fLog"><p class="eyebrow">Gra ekonomiczna</p><h1>Bursztynowe Miasto</h1>' +
+    '<p class="sub">Wpiszcie hasło swojej gildii. Punktowi i kadra wpisują swoje hasło.</p>' +
+    '<label for="haslo" class="sub">Hasło</label><input id="haslo" type="password" autocomplete="current-password" autocapitalize="none" spellcheck="false">' +
+    '<button class="btn amber" type="submit">Wejdź</button></form></div>';
+  document.getElementById('fLog').onsubmit = function(e){
+    e.preventDefault(); var h = document.getElementById('haslo').value.trim(); if (!h) return;
+    S.haslo = h;
+    api(null).then(function(o){
+      if (o.blad){ S.haslo = ''; toast(o.blad, true); return; }
+      pam('bm_haslo', h); S.w = o.widok; rysuj();
+    }).catch(function(){ S.haslo = ''; toast('Brak połączenia z serwerem.', true); });
+  };
+}
+function pasek(tytul, liczby){
+  return '<div class="top"><div class="in"><div class="who">' + esc(tytul) + '</div><div class="nums">' + liczby.map(function(l){ return '<div class="num ' + (l[2] || '') + '"><b>' + esc(l[0]) + '</b><span>' + esc(l[1]) + '</span></div>'; }).join('') + '</div></div></div>';
+}
+function zakladki(lista){
+  return '<nav class="tabs"><div class="in" role="tablist">' + lista.map(function(t){ return '<button role="tab" data-tab="' + t[0] + '" aria-selected="' + (S.tab === t[0]) + '">' + esc(t[1]) + '</button>'; }).join('') + '</div></nav>';
+}
+function podepnijZakladki(){
+  var b = document.querySelectorAll('[data-tab]');
+  for (var i = 0; i < b.length; i++) b[i].onclick = function(){ S.tab = this.getAttribute('data-tab'); if (S.tab !== 'cennik') S.cfgEdycja = null; rysuj(); window.scrollTo(0, 0); };
+}
+function wylogujLink(){ return '<p class="small" style="text-align:center"><button class="btn ghost" id="wyl" style="min-height:38px;padding:6px 14px">Wyloguj</button></p>'; }
+function podepnijWyloguj(){ var b = document.getElementById('wyl'); if (b) b.onclick = function(){ wyloguj(); }; }
+
+// ---------- gildia ----------
+function rysujGildie(){
+  var w = S.w; if (!S.tab) S.tab = 'flota';
+  var h = pasek(w.nazwa, [[w.bursztyn, 'bursztyn', 'amb'], [w.porty + '/' + w.ilePortow, 'porty'], [w.rankingUkryty ? '?' : w.miejsce + '.', 'miejsce']]) + '<div class="wrap">';
+  if (w.zamkniete) h += '<div class="banner bad">' + esc(w.zamkniete) + '</div>';
+  else if (w.faza === 'ostatnie') h += '<div class="banner">Ostatnie 10 minut. Wolno przeprowadzić już tylko jeden atak. Koniec gry o ' + esc(w.godziny.koniec) + '.</div>';
+  if (w.bursztyn < 0) h += '<div class="banner bad">Skarbiec jest na minusie. Nie możecie kupować ani atakować, dopóki nie odrobicie długu na punktach.</div>';
+  if (S.tab === 'flota') h += gFlota(w);
+  if (S.tab === 'atak') h += gAtak(w);
+  if (S.tab === 'punkty') h += gPunkty(w);
+  if (S.tab === 'dziennik') h += gDziennik(w);
+  if (S.tab === 'ranking') h += gRanking(w);
+  h += '</div>' + zakladki([['flota', 'Flota'], ['atak', 'Atak'], ['punkty', 'Punkty'], ['dziennik', 'Dziennik'], ['ranking', 'Ranking']]);
+  $app.innerHTML = h; podepnijZakladki(); podepnijWyloguj();
+  var i, b = $app.querySelectorAll('[data-kup]');
+  for (i = 0; i < b.length; i++) b[i].onclick = function(){ var d = this.dataset; potwierdz('Kupić: ' + d.nazwa + '?', 'Cena: <b>' + esc(d.cena) + '</b> bursztynów. Zakupu nie da się cofnąć.', 'Kupuję', { typ:'kup', co: d.kup }); };
+  b = $app.querySelectorAll('[data-sprzedaj]');
+  for (i = 0; i < b.length; i++) b[i].onclick = function(){ var d = this.dataset; potwierdz('Sprzedać: ' + d.nazwa + '?', 'Dostaniecie <b>' + esc(d.zwrot) + '</b> bursztynów, czyli połowę ceny.', 'Sprzedaję', { typ:'sprzedaj', co: d.sprzedaj }); };
+  b = $app.querySelectorAll('[data-atak]');
+  for (i = 0; i < b.length; i++) b[i].onclick = function(){ var d = this.dataset; potwierdz('Atak: ' + d.nazwa + '?', esc(d.opis), 'Atakujemy', { typ:'atak', taktyka: d.atak }); };
+  b = $app.querySelectorAll('[data-martwy]');
+  for (i = 0; i < b.length; i++) b[i].onsubmit = function(e){ e.preventDefault(); var v = this.querySelector('input').value.trim(); if (!v) return toast('Wpiszcie odpowiedź.', true); this.querySelector('input').setAttribute('data-stale', '1'); wykonaj({ typ:'martwy', punkt: Number(this.dataset.martwy), odpowiedz: v }); };
+  var fz = document.getElementById('fZnajdzka');
+  if (fz) fz.onsubmit = function(e){ e.preventDefault(); var v = this.querySelector('input').value.trim(); if (!v) return toast('Wpiszcie kod.', true); this.querySelector('input').setAttribute('data-stale', '1'); wykonaj({ typ:'znajdzka', kod: v }); };
+}
+function gFlota(w){
+  var h = '<div class="stats"><div class="stat"><b>' + w.sila + '</b><span>Siła</span></div><div class="stat"><b>' + w.zasieg + '</b><span>Zasięg</span></div><div class="stat"><b>' + w.zwrot + '</b><span>Zwrotność</span></div></div>' +
+    '<p class="sub">Statków: <b>' + w.ileStatkow + ' z ' + w.limit + '</b>. Koszt naprawy całej floty: <b>' + w.naprawa + '</b>.</p><h2>Statki</h2>';
+  w.statki.forEach(function(s){
+    h += '<div class="card"><div class="row"><span class="name">' + esc(s.nazwa) + '</span>' + (s.ile ? '<span class="pill amb">macie: ' + s.ile + '</span>' : '') + '</div>' +
+      '<p class="sub">Siła ' + s.sila + ' · Zasięg ' + s.zasieg + ' · Zwrotność ' + s.zwrot + ' · naprawa ' + s.naprawa + '</p><div class="btns">' +
+      '<button class="btn" data-kup="' + esc(s.id) + '" data-nazwa="' + esc(s.nazwa) + '" data-cena="' + s.cena + '"' + (s.powod ? ' disabled' : '') + '>Kup za ' + s.cena + '</button>' +
+      (s.ile && !w.zamkniete ? '<button class="btn ghost" data-sprzedaj="' + esc(s.id) + '" data-nazwa="' + esc(s.nazwa) + '" data-zwrot="' + s.zwrotZaSprzedaz + '">Sprzedaj za ' + s.zwrotZaSprzedaz + '</button>' : '') +
+      (s.powod ? '<span class="why">' + esc(s.powod) + '</span>' : '') + '</div></div>';
+  });
+  h += '<h2>Budowle</h2><p class="sub">Każdą budowlę stawia się tylko raz. Działa od chwili zakupu.</p>';
+  w.budowle.forEach(function(b){
+    h += '<div class="card"><div class="row"><span class="name">' + esc(b.nazwa) + '</span>' + (b.ma ? '<span class="pill ok">postawiona</span>' : '') + '</div><p class="sub">' + esc(b.opis) + '</p>' +
+      (b.ma ? '' : '<div class="btns"><button class="btn" data-kup="' + esc(b.id) + '" data-nazwa="' + esc(b.nazwa) + '" data-cena="' + b.cena + '"' + (b.powod ? ' disabled' : '') + '>Postaw za ' + b.cena + '</button>' + (b.powod ? '<span class="why">' + esc(b.powod) + '</span>' : '') + '</div>') + '</div>';
+  });
+  return h + wylogujLink();
+}
+function gAtak(w){
+  var h = '';
+  if (!w.nastepny) h += '<div class="banner">Wszystkie porty zdobyte. Dopłynęliście do końca szlaku.</div>';
+  else {
+    var n = w.nastepny;
+    h += '<div class="card next"><p class="sub">Następny port, numer ' + n.nr + ' z ' + w.ilePortow + '</p><h2>' + esc(n.nazwa) + '</h2><p>Broni go: <b>' + esc(n.broni) + '</b>. ' + (n.lup ? 'Łup: <b>' + n.lup + '</b>.' : 'To ostatni port, bez łupu.') + '</p>' +
+      (n.nieudane ? '<p class="why">Wasze nieudane ataki na ten port: ' + n.nieudane + '. Obrona jest wyższa o ' + n.nieudane + '.</p>' : '') + '</div>';
+    w.taktyki.forEach(function(t){
+      var mozna = !t.powod, opis;
+      h += '<div class="card"><div class="row"><span class="name">' + esc(t.nazwa) + '</span>' + (t.obrona == null ? '<span class="pill bad">nie da się</span>' : '<span class="pill ' + (t.szansa >= 70 ? 'ok' : t.szansa >= 30 ? 'amb' : 'bad') + '">szansa ' + t.szansa + '%</span>') + '</div>';
+      if (t.obrona != null){
+        h += '<p>Wasza ' + esc(t.statNazwa) + ': <b>' + t.stat + '</b>. Obrona portu: <b>' + t.obrona + '</b>. ' + (t.brakuje <= 2 ? 'Wystarczy dowolny rzut.' : 'Na kościach potrzeba co najmniej <b>' + t.brakuje + '</b>.') + '</p>' +
+          '<p class="sub">Udany atak: ' + (t.lupRazy > 1 ? 'łup o połowę większy' : 'zwykły łup') + '. Nieudany: ' + (t.kosztPorazki ? 'płacicie ' + t.kosztPorazki : 'nic nie płacicie') + ', obrona portu rośnie o 1.</p>';
+        opis = t.statNazwa + ' ' + t.stat + ' przeciw obronie ' + t.obrona + '. Szansa ' + t.szansa + '%. Jeśli się nie uda' + (t.kosztPorazki ? ', zapłacicie ' + t.kosztPorazki + ' bursztynów' : ', nic nie zapłacicie') + ', a obrona portu wzrośnie o 1.';
+        h += '<div class="btns"><button class="btn amber" data-atak="' + t.id + '" data-nazwa="' + esc(n.nazwa + ', ' + t.nazwa) + '" data-opis="' + esc(opis) + '"' + (mozna ? '' : ' disabled') + '>Atakuj: ' + esc(t.nazwa) + '</button>' + (t.powod ? '<span class="why">' + esc(t.powod) + '</span>' : '') + '</div>';
+      } else h += '<p class="sub">Tą taktyką tego portu zdobyć się nie da.</p>';
+      h += '</div>';
+    });
+  }
+  h += '<h2>Wszystkie porty</h2><div class="scroll"><table class="porty"><tr><th>Nr</th><th>Port</th><th class="n">Nat.</th><th class="n">Ostrz.</th><th class="n">Zask.</th><th class="n">Łup</th></tr>';
+  w.tabelaPortow.forEach(function(p){
+    h += '<tr class="' + (p.zdobyty ? 'done' : p.nastepny ? 'cur' : '') + '"><td>' + p.nr + '</td><td>' + esc(p.nazwa) + (p.zdobyty ? ' ✓' : '') + '<br><span class="small">' + esc(p.broni) + '</span></td>' +
+      p.obrona.map(function(o){ return '<td class="n">' + (o == null ? '—' : o) + '</td>'; }).join('') + '<td class="n">' + (p.lup || '—') + '</td></tr>';
+  });
+  h += '</table></div><p class="small">Nat., Ostrz. i Zask. to obrona portu przed natarciem, ostrzałem i zaskoczeniem. Kreska oznacza, że tą taktyką portu zdobyć się nie da. Po każdym waszym nieudanym ataku obrona tego portu rośnie o 1.</p>';
+  return h;
+}
+function gPunkty(w){
+  var h = '<p class="sub">Każdy zdobyty port daje +' + w.portBonus + ' bursztynów do każdego zaliczonego punktu żywego i martwego.</p>';
+  h += '<h2>Znajdźka</h2><div class="card"><p class="sub">Znalezione: <b>' + w.znajdzki.znalezione + ' z ' + w.znajdzki.wszystkie + '</b>. Wpiszcie kod z kartki.</p>' +
+    '<form class="field" id="fZnajdzka"><input type="text" aria-label="Kod znajdźki" autocapitalize="characters" autocomplete="off" spellcheck="false" placeholder="Kod"' + (w.zamkniete ? ' disabled' : '') + '><button class="btn"' + (w.zamkniete ? ' disabled' : '') + '>Wyślij</button></form></div>';
+  h += '<h2>Punkty martwe</h2>';
+  w.martwe.forEach(function(p){
+    h += '<div class="card"><div class="row"><span class="name">' + esc(p.nazwa) + '</span>' + (p.zaliczony ? '<span class="pill ok">zaliczony</span>' : p.zostaloProb ? '<span class="pill">' + p.nagroda + ' bursztynów · prób: ' + p.zostaloProb + '</span>' : '<span class="pill bad">brak prób</span>') + '</div>' +
+      (p.pytanie ? '<p>' + esc(p.pytanie) + '</p>' : '');
+    if (!p.zaliczony && p.zostaloProb && !w.zamkniete) h += '<form class="field" data-martwy="' + p.nr + '"><input type="text" aria-label="Odpowiedź: ' + esc(p.nazwa) + '" autocomplete="off" placeholder="Odpowiedź"><button class="btn">Wyślij</button></form>';
+    h += '</div>';
+  });
+  h += '<h2>Punkty żywe</h2><div class="card"><p class="sub">Te punkty ocenia punktowy po wykonaniu zadania. Na ten sam punkt można wracać po kolejne zadanie.</p>' +
+    w.zywe.map(function(p){ return '<div class="row"><span>' + esc(p.nazwa) + (p.godziny ? ' <span class="small">' + esc(p.godziny) + '</span>' : '') + '</span>' + (p.wizyty ? '<span class="pill ok">wizyt: ' + p.wizyty + (p.limit ? ' z ' + p.limit : '') + (p.znowuOd ? ', znowu od ' + esc(p.znowuOd) : '') + '</span>' : '<span class="pill">jeszcze nie byliście</span>') + '</div>'; }).join('') + '</div>';
+  return h;
+}
+function gDziennik(w){
+  if (!w.dziennik.length) return '<h2>Dziennik</h2><p class="sub">Tu pojawi się wszystko, co zgłosicie: zakupy, ataki i punkty.</p>';
+  return '<h2>Dziennik</h2><p class="sub">Ostatnie zgłoszenia, najnowsze na górze.</p><div class="log">' + w.dziennik.map(function(e){
+    return '<div class="e' + (e.ok ? '' : ' no') + '"><span class="t">' + esc(e.czas) + '</span><span><b>' + esc(e.opis) + '</b><br><span class="w">' + esc(e.wynik) + '</span></span></div>'; }).join('') + '</div>';
+}
+function gRanking(w){
+  if (w.rankingUkryty) return '<h2>Ranking</h2><div class="banner">Ranking jest ukryty do końca gry. Wyniki ogłosi kadra na podsumowaniu.</div><p class="small">Zdobyliście dotąd ' + w.zdobyty + ' bursztynów i ' + w.porty + ' portów.</p>';
+  return '<h2>Ranking</h2>' + (w.rankingDo ? '<p class="sub"><b>Ranking będzie widoczny do ' + esc(w.rankingDo) + '.</b> Potem zniknie do końca gry.</p>' : '') + '<p class="sub">Liczy się liczba zdobytych portów. Przy remisie wygrywa gildia, która przez całą grę zdobyła więcej bursztynu.</p><table><tr><th>Miejsce</th><th>Gildia</th><th class="n">Porty</th></tr>' +
+    w.ranking.map(function(r){ return '<tr class="' + (r.ja ? 'me' : '') + '"><td>' + r.miejsce + '.</td><td>' + esc(r.nazwa) + (r.ja ? ' (wy)' : '') + '</td><td class="n">' + r.porty + '</td></tr>'; }).join('') + '</table>' +
+    '<p class="small">Zdobyliście dotąd ' + w.zdobyty + ' bursztynów.</p>';
+}
+
+// ---------- punktowy ----------
+function rysujPunktowego(){
+  var w = S.w;
+  if (S.punkt === null){ var z = pam('bm_punkt'); if (z !== null && w.punkty[Number(z)]) S.punkt = Number(z); }
+  var h = pasek('Punktowy' + (S.punkt !== null ? ': ' + w.punkty[S.punkt] : ''), [[w.teraz, 'godzina']]) + '<div class="wrap">';
+  if (w.faza === 'przed') h += '<div class="banner bad">Gra jeszcze się nie zaczęła.</div>';
+  if (w.faza === 'koniec') h += '<div class="banner bad">Gra już się skończyła. Zaliczanie jest zamknięte.</div>';
+  h += '<h2>Na którym punkcie stoisz?</h2><div class="btns">' + w.punkty.map(function(p, i){ return '<button class="btn ' + (S.punkt === i ? '' : 'ghost') + '" data-punkt="' + i + '">' + esc(p) + '</button>'; }).join('') + '</div>';
+  if (S.punkt !== null){
+    var szyb = [w.ocena.max - 25, w.ocena.max - 15, w.ocena.max].filter(function(x){ return x >= w.ocena.min; });
+    h += '<h2>Oceń zadanie</h2><p class="sub">Wpisz, ile bursztynu gildia dostaje za zadanie: od ' + w.ocena.min + ' do ' + w.ocena.max + '. ' + (w.limit ? 'Jedna gildia może tu przyjść najwyżej ' + w.limit + ' razy' : 'Gildia może tu wracać dowolną liczbę razy') + (w.przerwa ? ', z przerwą co najmniej ' + w.przerwa + ' minut.' : '.') + '</p>';
+    w.gildie.forEach(function(g, i){
+      var wiz = g.wizyty[S.punkt], czeka = g.znowuOd[S.punkt], zrobione = (w.limit > 0 && wiz >= w.limit) || !!czeka, zam = w.faza === 'przed' || w.faza === 'koniec';
+      h += '<div class="card"><div class="row"><span class="name">' + esc(g.nazwa) + '</span>' + (wiz ? '<span class="pill ' + (zrobione ? 'bad' : 'ok') + '">wizyt: ' + wiz + (w.limit ? ' z ' + w.limit : '') + '</span>' : '') + '</div>' + (czeka ? '<p class="sub">Była tu niedawno. Znowu może przyjść od ' + esc(czeka) + '.</p>' : '') +
+        (zrobione ? '' : '<form class="field" novalidate data-zal="' + i + '"><input type="number" inputmode="numeric" step="1" min="' + w.ocena.min + '" max="' + w.ocena.max + '" placeholder="' + w.ocena.min + ' do ' + w.ocena.max + '" aria-label="Ocena: ' + esc(g.nazwa) + '"' + (zam ? ' disabled' : '') + '><button class="btn"' + (zam ? ' disabled' : '') + '>Zalicz</button></form>' +
+          '<div class="btns">' + szyb.map(function(x){ return '<button type="button" class="btn ghost" style="min-height:38px;padding:6px 14px" data-szybko="' + i + '" data-v="' + x + '"' + (zam ? ' disabled' : '') + '>' + x + '</button>'; }).join('') + '</div>') + '</div>';
+    });
+  }
+  h += wylogujLink() + '</div>';
+  $app.innerHTML = h; podepnijWyloguj();
+  var i, b = $app.querySelectorAll('[data-punkt]');
+  for (i = 0; i < b.length; i++) b[i].onclick = function(){ S.punkt = Number(this.dataset.punkt); pam('bm_punkt', String(S.punkt)); rysuj(); };
+  b = $app.querySelectorAll('[data-szybko]');
+  for (i = 0; i < b.length; i++) b[i].onclick = function(){ var p = $app.querySelector('form[data-zal="' + this.dataset.szybko + '"] input'); p.value = this.dataset.v; p.focus(); };
+  b = $app.querySelectorAll('form[data-zal]');
+  for (i = 0; i < b.length; i++) b[i].onsubmit = function(e){
+    e.preventDefault(); var g = Number(this.dataset.zal), pole = this.querySelector('input'), v = pole.value.trim(), n = Number(v);
+    if (v === '' || !Number.isInteger(n) || n < w.ocena.min || n > w.ocena.max) return toast('Wpisz liczbę całkowitą od ' + w.ocena.min + ' do ' + w.ocena.max + '.', true);
+    pole.setAttribute('data-stale', '1');
+    potwierdz(w.gildie[g].nazwa + ': ' + w.punkty[S.punkt], 'Ocena: <b>' + n + '</b> bursztynów. Tego nie da się cofnąć bez kadry.', 'Zaliczam', { typ:'zywy', gildia: g, punkt: S.punkt, ile: n });
+  };
+}
+
+// ---------- kadra ----------
+function rysujKadre(){
+  var w = S.w; if (!S.tab) S.tab = 'ranking';
+  var fazy = { przed:'przed startem', trwa:'gra trwa', ostatnie:'ostatnie 10 min', koniec:'po grze' };
+  var h = pasek('Kadra', [[w.teraz.slice(0, 5), fazy[w.faza] || ''], [w.ileZdarzen, 'zdarzeń']]) + '<div class="wrap">';
+  if (w.hasloKadryDomyslne) h += '<div class="banner bad">Działa domyślne hasło kadry. Ustawcie zmienną HASLO_KADRY na serwerze przed grą.</div>';
+  if (S.tab === 'ranking') h += kRanking(w);
+  if (S.tab === 'dziennik') h += kDziennik(w);
+  if (S.tab === 'korekta') h += kKorekta(w);
+  if (S.tab === 'cennik') h += kCennik(w);
+  if (S.tab === 'gra') h += kGra(w);
+  h += '</div>' + zakladki([['ranking', 'Ranking'], ['dziennik', 'Dziennik'], ['korekta', 'Poprawki'], ['cennik', 'Cennik'], ['gra', 'Gra']]);
+  $app.innerHTML = h; podepnijZakladki(); podepnijWyloguj();
+  var f = document.getElementById('filtr'); if (f) f.onchange = function(){ S.filtr = this.value; rysuj(); };
+  var fk = document.getElementById('fKor');
+  if (fk) fk.onsubmit = function(e){
+    e.preventDefault(); var g = Number(document.getElementById('korG').value), ile = Number(document.getElementById('korIle').value), powod = document.getElementById('korPowod').value.trim();
+    if (!ile) return toast('Wpiszcie liczbę różną od zera, np. 25 albo -25.', true);
+    ['korIle', 'korPowod'].forEach(function(id){ document.getElementById(id).setAttribute('data-stale', '1'); });
+    potwierdz('Korekta: ' + w.ranking.filter(function(r){ return r.i === g; })[0].nazwa, 'Zmiana bursztynu: <b>' + (ile > 0 ? '+' : '') + ile + '</b>' + (powod ? '. Powód: ' + esc(powod) : '') + '.', 'Zapisz korektę', { typ:'korekta', gildia: g, ile: ile, powod: powod });
+  };
+  var eg = document.getElementById('edG'); if (eg) eg.onchange = function(){ S.edG = Number(this.value); rysuj(); };
+  var fe = document.getElementById('fEd');
+  if (fe) fe.onsubmit = function(e){ e.preventDefault(); var g = Number(document.getElementById('edG').value), n = zbierzEdycje();
+    potwierdz('Zapisać zmiany: ' + w.konfiguracja.gildie[g].nazwa + '?', 'Stan gildii zostanie ustawiony dokładnie tak, jak w formularzu. Zmiana trafi do dziennika.', 'Zapisz', { typ:'edytuj', gildia: g, stan: n }); };
+  var zc = document.getElementById('zapiszCfg'); if (zc) zc.onclick = zapiszCennik;
+  var bd = $app.querySelectorAll('[data-dodaj],[data-usun]');
+  for (var q = 0; q < bd.length; q++) bd[q].onclick = function(){ if (this.dataset.dodaj) zmienWiersze(this.dataset.dodaj, true); else zmienWiersze(this.dataset.usun, false); };
+  var fr = document.getElementById('fReset');
+  if (fr) fr.onsubmit = function(e){ e.preventDefault(); var v = document.getElementById('resetTxt').value.trim(); document.getElementById('resetTxt').setAttribute('data-stale', '1'); wykonaj({ typ:'reset', potwierdzenie: v }); };
+}
+function kRanking(w){
+  var h = '<h2>Ranking</h2><div class="scroll"><table><tr><th>Miejsce</th><th>Gildia</th><th class="n">Porty</th><th class="n">Zdobyty</th><th class="n">Skarbiec</th><th class="n">Siła</th><th class="n">Zasięg</th><th class="n">Zwrot.</th></tr>';
+  w.ranking.forEach(function(r){ h += '<tr><td>' + r.miejsce + '.</td><td class="nw"><b>' + esc(r.nazwa) + '</b></td><td class="n">' + r.porty + '</td><td class="n">' + r.zdobyty + '</td><td class="n">' + r.bursztyn + '</td><td class="n">' + r.sila + '</td><td class="n">' + r.zasieg + '</td><td class="n">' + r.zwrot + '</td></tr>'; });
+  h += '</table></div><h2>Szczegóły gildii</h2>';
+  w.ranking.forEach(function(r){
+    h += '<div class="card"><div class="row"><span class="name">' + esc(r.nazwa) + '</span><span class="pill">porty: ' + r.porty + '</span></div><p class="sub">Statki: ' + esc(r.statki) + '</p><p class="sub">Budowle: ' + esc(r.budowle) + '</p>' +
+      '<p class="sub">Punkty żywe: ' + r.zywe + ' · martwe: ' + r.martwe + ' · znajdźki: ' + r.znajdzki + ' · nieudane ataki na następny port: ' + r.nieudane + '</p></div>';
+  });
+  return h;
+}
+function kDziennik(w){
+  var h = '<h2>Dziennik</h2><select id="filtr" aria-label="Filtr gildii"><option value="">Wszystkie gildie</option>' + w.ranking.slice().sort(function(a, b){ return a.i - b.i; }).map(function(r){ return '<option value="' + r.i + '"' + (String(r.i) === S.filtr ? ' selected' : '') + '>' + esc(r.nazwa) + '</option>'; }).join('') + '</select>';
+  var l = w.dziennik.filter(function(d){ return S.filtr === '' || String(d.g) === S.filtr; });
+  if (!l.length) return h + '<p class="sub">Jeszcze nic się nie wydarzyło.</p>';
+  h += '<div class="log">' + l.map(function(e){
+    return '<div class="e' + (e.ok ? '' : ' no') + '"><span class="t">' + esc(e.czas.slice(0, 5)) + '</span><span><b>' + esc(e.gildia || 'Kadra') + '</b> · ' + esc(e.opis) + ' <span class="small">(' + esc(e.kto) + ')</span><br><span class="w">' + esc(e.wynik) + '</span>' +
+      (e.b != null ? ' <span class="small">Skarbiec po: ' + e.b + '</span>' : '') + '</span></div>'; }).join('') + '</div><p class="small">Widać 300 ostatnich zdarzeń. Całość jest w eksporcie w zakładce Gra.</p>';
+  return h;
+}
+function kKorekta(w){
+  return '<h2>Korekta bursztynu</h2><p class="sub">Do naprawiania pomyłek. Liczba dodatnia dodaje bursztyn, ujemna odejmuje. Korekta zmienia też bursztyn zdobyty w całej grze i trafia do dziennika.</p>' +
+    '<form class="card" id="fKor"><label for="korG">Gildia</label><select id="korG">' + w.ranking.slice().sort(function(a, b){ return a.i - b.i; }).map(function(r){ return '<option value="' + r.i + '">' + esc(r.nazwa) + ' (skarbiec ' + r.bursztyn + ')</option>'; }).join('') + '</select>' +
+    '<label for="korIle">Ile bursztynu dodać lub odjąć</label><input id="korIle" type="number" step="1" inputmode="numeric" placeholder="np. 25 albo -25">' +
+    '<label for="korPowod">Powód</label><input id="korPowod" type="text" maxlength="200" placeholder="np. punktowy zaliczył nie tę gildię"><button class="btn amber">Dalej</button></form>' + kEdycja(w);
+}
+function kEdycja(w){
+  var c = w.konfiguracja, g = Math.min(S.edG || 0, w.stany.length - 1), st = w.stany[g];
+  var num = function(attr, v, label, min){ return '<label class="edl"><span>' + esc(label) + '</span><input type="number" step="1"' + (min !== undefined ? ' min="' + min + '"' : '') + ' ' + attr + ' value="' + esc(v) + '" data-stale="1"></label>'; };
+  var chk = function(attr, on, label){ return '<label class="edc"><input type="checkbox" ' + attr + (on ? ' checked' : '') + '><span>' + esc(label) + '</span></label>'; };
+  var h = '<h2>Edycja gildii</h2><p class="sub">Na wypadek awarii lub pomyłki: można dać albo zabrać statek, budowlę, port, punkt. Każda zmiana trafia do dziennika.</p>' +
+    '<form class="card" id="fEd" novalidate><label for="edG">Gildia</label><select id="edG">' + c.gildie.map(function(x, i){ return '<option value="' + i + '"' + (i === g ? ' selected' : '') + '>' + esc(x.nazwa) + '</option>'; }).join('') + '</select>' +
+    '<h3>Skarbiec i porty</h3><div class="edg">' + num('id="ed_b"', st.b, 'Bursztyn w skarbcu') + num('id="ed_z"', st.z, 'Zdobyty w całej grze', 0) + num('id="ed_p"', st.p, 'Zdobyte porty (0 do ' + c.porty.length + ')', 0) + num('id="ed_fail"', st.fail, 'Nieudane ataki na następny port', 0) + '</div>' +
+    '<h3>Statki</h3><div class="edg">' + c.statki.map(function(x){ return num('data-eds="' + esc(x.id) + '"', st.s[x.id] || 0, x.nazwa, 0); }).join('') + '</div>' +
+    '<h3>Budowle</h3><div class="edg">' + c.budowle.map(function(x){ return chk('data-edb="' + esc(x.id) + '"', !!st.bud[x.id], x.nazwa); }).join('') + '</div>' +
+    '<h3>Punkty żywe: liczba wizyt</h3><div class="edg">' + c.punkty_zywe.map(function(x, i){ return num('data-edzy="' + i + '"', st.zy[i] || 0, x.nazwa, 0); }).join('') + '</div>' +
+    '<h3>Punkty martwe</h3><div class="edg">' + c.punkty_martwe.map(function(x, i){ return chk('data-edmd="' + i + '"', !!st.md[i], x.nazwa + ' zaliczony') + num('data-edmt="' + i + '"', st.mt[i] || 0, x.nazwa + ': zużyte próby', 0); }).join('') + '</div>' +
+    '<h3>Znajdźki</h3><div class="edg">' + c.znajdzki.map(function(x, i){ return chk('data-edzn="' + i + '"', !!st.zn[i], x); }).join('') + '</div>' +
+    '<button class="btn amber">Zapisz zmiany w gildii</button></form>';
+  return h;
+}
+function zbierzEdycje(){
+  var n = { s:{}, bud:{}, md:{}, mt:{}, zy:{}, zn:{} }, v = function(id){ return document.getElementById(id).value; }, i, p;
+  n.b = v('ed_b'); n.z = v('ed_z'); n.p = v('ed_p'); n.fail = v('ed_fail');
+  p = $app.querySelectorAll('[data-eds]'); for (i = 0; i < p.length; i++) n.s[p[i].dataset.eds] = p[i].value;
+  p = $app.querySelectorAll('[data-edb]'); for (i = 0; i < p.length; i++) n.bud[p[i].dataset.edb] = p[i].checked;
+  p = $app.querySelectorAll('[data-edzy]'); for (i = 0; i < p.length; i++) n.zy[p[i].dataset.edzy] = p[i].value;
+  p = $app.querySelectorAll('[data-edmd]'); for (i = 0; i < p.length; i++) n.md[p[i].dataset.edmd] = p[i].checked;
+  p = $app.querySelectorAll('[data-edmt]'); for (i = 0; i < p.length; i++) n.mt[p[i].dataset.edmt] = p[i].value;
+  p = $app.querySelectorAll('[data-edzn]'); for (i = 0; i < p.length; i++) n.zn[p[i].dataset.edzn] = p[i].checked;
+  return n;
+}
+var CFG_OPISY = { ustawienia:'Ustawienia', gildie:'Gildie i hasła', statki:'Statki', budowle:'Budowle', porty:'Porty (99 oznacza „nie da się”)', punkty_martwe:'Punkty martwe', punkty_zywe:'Punkty żywe', znajdzki:'Kody znajdziek (jeden w wierszu)' };
+function kCennik(w){
+  if (!S.cfgEdycja) S.cfgEdycja = JSON.parse(JSON.stringify(w.konfiguracja));
+  var c = S.cfgEdycja, h = '<h2>Cennik i ustawienia</h2><p class="sub">Zmiany działają od razu po zapisaniu. W trakcie gry zmieniajcie tylko to, co konieczne.</p><div class="cfg">';
+  Object.keys(CFG_OPISY).forEach(function(k){
+    var v = c[k]; h += '<details' + (k === (S.cfgOtwarte || 'gildie') ? ' open' : '') + '><summary>' + esc(CFG_OPISY[k]) + '</summary>';
+    if (k === 'znajdzki') h += '<textarea data-c="znajdzki" rows="10" aria-label="Kody znajdziek">' + esc(v.join('\n')) + '</textarea>';
+    else if (Array.isArray(v)){
+      var kol = Object.keys(v[0] || {});
+      h += '<div class="scroll"><table><tr>' + kol.map(function(x){ return '<th>' + esc(x) + '</th>'; }).join('') + '</tr>' + v.map(function(w2, i){
+        return '<tr>' + kol.map(function(x){ var num = typeof w2[x] === 'number'; return '<td><input ' + (num ? 'type="number" step="any"' : 'type="text"') + ' data-c="' + k + '" data-i="' + i + '" data-k="' + esc(x) + '" value="' + esc(w2[x]) + '" aria-label="' + esc(x) + '"' + (x === 'id' ? ' readonly' : '') + '></td>'; }).join('') + '</tr>'; }).join('') + '</table></div>';
+      if (CFG_NOWY[k]) h += '<div class="btns" style="margin:8px 0"><button class="btn ghost" data-dodaj="' + k + '">Dodaj wiersz</button><button class="btn ghost" data-usun="' + k + '"' + (v.length > 1 ? '' : ' disabled') + '>Usuń ostatni</button></div>' + (k === 'gildie' ? '<p class="small">Usunięcie gildii kasuje jej postęp. Nowa gildia zaczyna od zera. Zmiana działa po naciśnięciu „Zapisz zmiany”.</p>' : '');
+    } else {
+      h += '<table>' + Object.keys(v).map(function(x){
+        var val = v[x], pole;
+        if (typeof val === 'boolean') pole = '<select data-c="' + k + '" data-k="' + esc(x) + '" data-b="1" aria-label="' + esc(x) + '"><option value="1"' + (val ? ' selected' : '') + '>tak</option><option value="0"' + (val ? '' : ' selected') + '>nie</option></select>';
+        else pole = '<input ' + (typeof val === 'number' ? 'type="number" step="any"' : 'type="text"') + ' data-c="' + k + '" data-k="' + esc(x) + '" value="' + esc(val) + '" aria-label="' + esc(x) + '">';
+        return '<tr><td>' + esc(x) + '</td><td>' + pole + '</td></tr>'; }).join('') + '</table>';
+    }
+    h += '</details>';
+  });
+  return h + '</div><div class="btns"><button class="btn amber" id="zapiszCfg">Zapisz zmiany</button></div><p class="small">„pilnuj_godzin” na „nie” wyłącza sprawdzanie godzin, co przydaje się do prób. Przed grą ustawcie „tak”.</p>';
+}
+function zbierzCennik(){
+  var c = JSON.parse(JSON.stringify(S.cfgEdycja || S.w.konfiguracja)), pola = $app.querySelectorAll('[data-c]'), zle = '';
+  for (var i = 0; i < pola.length; i++){
+    var p = pola[i], sek = p.dataset.c, k = p.dataset.k, v = p.value;
+    if (sek === 'znajdzki'){ c.znajdzki = v.split('\n').map(function(x){ return x.trim(); }).filter(Boolean); continue; }
+    var cel = p.dataset.i !== undefined ? c[sek][Number(p.dataset.i)] : c[sek];
+    if (p.dataset.b) cel[k] = v === '1';
+    else if (p.type === 'number'){ if (v === '' || isNaN(Number(v))) zle = 'Pole „' + k + '” musi być liczbą.'; cel[k] = Number(v); }
+    else cel[k] = v;
+    p.setAttribute('data-stale', '1');
+  }
+  return { c: c, zle: zle };
+}
+function zapiszCennik(){
+  var z = zbierzCennik(); if (z.zle) return toast(z.zle, true);
+  S.cfgEdycja = z.c;
+  wykonaj({ typ:'zapisz_konfiguracje', konfiguracja: z.c });
+}
+var CFG_NOWY = {
+  gildie: function(n){ return { nazwa: 'Gildia ' + n, haslo: 'gildia' + n + '-zmien' }; },
+  punkty_martwe: function(n){ return { nazwa: 'Punkt martwy ' + n, pytanie: '', odpowiedz: '', nagroda: 25 }; },
+  punkty_zywe: function(n){ return { nazwa: 'Punkt żywy ' + n, godziny: '' }; }
+};
+function zmienWiersze(sekcja, dodaj){
+  var z = zbierzCennik(), l = z.c[sekcja];
+  if (dodaj) l.push(CFG_NOWY[sekcja](l.length + 1)); else if (l.length > 1) l.pop();
+  S.cfgEdycja = z.c; S.cfgOtwarte = sekcja; rysuj();
+}
+function kGra(w){
+  var q = encodeURIComponent(S.haslo), u = w.konfiguracja.ustawienia;
+  return '<h2>Gra</h2><div class="card"><p>Godzina na serwerze: <b>' + esc(w.teraz) + '</b>.</p><p>Pilnowanie godzin: <b>' + (u.pilnuj_godzin ? 'włączone' : 'wyłączone (tryb próbny)') + '</b>. Start ' + esc(u.start_gry) + ', ostatnie 10 minut od ' + esc(u.ostatnie_10_min) + ', koniec ' + esc(u.koniec_gry) + '.</p></div>' +
+    '<h2>Eksport</h2><div class="card"><p class="sub">Kopia na wypadek awarii i do podsumowania po grze.</p><div class="btns"><a class="btn ghost" style="text-decoration:none;display:inline-flex;align-items:center" href="/eksport.csv?haslo=' + q + '">Dziennik (CSV do Excela)</a><a class="btn ghost" style="text-decoration:none;display:inline-flex;align-items:center" href="/eksport.json?haslo=' + q + '">Pełny stan (JSON)</a></div></div>' +
+    '<h2>Wyzerowanie gry</h2><form class="card" id="fReset"><p class="sub">Usuwa cały postęp wszystkich gildii i dziennik. Cennik i hasła zostają. Poprzedni stan zapisuje się w kopii na serwerze. Wpiszcie słowo RESET.</p><div class="field"><input id="resetTxt" type="text" aria-label="Wpisz RESET" autocomplete="off" autocapitalize="characters"><button class="btn bad">Wyzeruj grę</button></div></form>' + wylogujLink();
+}
+
+// ---------- start ----------
+var zap = pam('bm_haslo');
+if (zap){ S.haslo = zap; api(null).then(function(o){ if (o.blad){ S.haslo = ''; pam('bm_haslo', null); } else S.w = o.widok; rysuj(); }).catch(function(){ S.haslo = ''; rysuj(); toast('Brak połączenia z serwerem.', true); }); }
+else rysuj();
+setInterval(function(){ if (S.haslo && S.w && !document.hidden) odswiez(true); }, 8000);
+document.addEventListener('visibilitychange', function(){ if (!document.hidden && S.haslo && S.w) odswiez(true); });
+</script>
+</body>
+</html>

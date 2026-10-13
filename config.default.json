@@ -1,0 +1,357 @@
+{
+ "ustawienia": {
+  "start_bursztyn": 50,
+  "haslo_punktowych": "punkt-zmien-mnie",
+  "pilnuj_godzin": false,
+  "start_gry": "08:40",
+  "ostatnie_10_min": "11:10",
+  "koniec_gry": "11:20",
+  "port_bonus": 5,
+  "kram_bonus": 5,
+  "sklad_bonus": 10,
+  "kantor_bonus": 15,
+  "stocznia_znizka": 15,
+  "natarcie_mnoznik": 1.5,
+  "limit_statkow": 6,
+  "proby_martwy": 2,
+  "nagroda_znajdzka": 15,
+  "zywy_min": 0,
+  "zywy_max": 55,
+  "zywy_wizyty": 2,
+  "zywy_przerwa_min": 30,
+  "ukryj_ranking_min": 30
+ },
+ "gildie": [
+  {
+   "nazwa": "Gildia 1",
+   "haslo": "gildia1-zmien"
+  },
+  {
+   "nazwa": "Gildia 2",
+   "haslo": "gildia2-zmien"
+  },
+  {
+   "nazwa": "Gildia 3",
+   "haslo": "gildia3-zmien"
+  },
+  {
+   "nazwa": "Gildia 4",
+   "haslo": "gildia4-zmien"
+  },
+  {
+   "nazwa": "Gildia 5",
+   "haslo": "gildia5-zmien"
+  },
+  {
+   "nazwa": "Gildia 6",
+   "haslo": "gildia6-zmien"
+  },
+  {
+   "nazwa": "Gildia 7",
+   "haslo": "gildia7-zmien"
+  },
+  {
+   "nazwa": "Gildia 8",
+   "haslo": "gildia8-zmien"
+  },
+  {
+   "nazwa": "Gildia 9",
+   "haslo": "gildia9-zmien"
+  },
+  {
+   "nazwa": "Gildia 10",
+   "haslo": "gildia10-zmien"
+  }
+ ],
+ "statki": [
+  {
+   "id": "sznika",
+   "nazwa": "Sznika",
+   "cena": 30,
+   "sila": 1,
+   "zasieg": 0,
+   "zwrot": 2,
+   "naprawa": 5
+  },
+  {
+   "id": "krajer",
+   "nazwa": "Krajer",
+   "cena": 55,
+   "sila": 1,
+   "zasieg": 3,
+   "zwrot": 1,
+   "naprawa": 8
+  },
+  {
+   "id": "koga",
+   "nazwa": "Koga",
+   "cena": 190,
+   "sila": 3,
+   "zasieg": 8,
+   "zwrot": 1,
+   "naprawa": 16
+  },
+  {
+   "id": "holk",
+   "nazwa": "Holk",
+   "cena": 190,
+   "sila": 13,
+   "zasieg": 2,
+   "zwrot": 0,
+   "naprawa": 22
+  }
+ ],
+ "budowle": [
+  {
+   "id": "kram",
+   "nazwa": "Kram",
+   "cena": 45,
+   "opis": "+5 bursztynów za każdy następny zaliczony punkt"
+  },
+  {
+   "id": "sklad",
+   "nazwa": "Skład",
+   "cena": 40,
+   "opis": "+10 bursztynów do każdego następnego łupu"
+  },
+  {
+   "id": "kantor",
+   "nazwa": "Kantor",
+   "cena": 40,
+   "opis": "następne znajdźki dają 30 bursztynów zamiast 15"
+  },
+  {
+   "id": "zbrojownia",
+   "nazwa": "Zbrojownia",
+   "cena": 70,
+   "opis": "+4 do Siły całej floty",
+   "bonus": 4
+  },
+  {
+   "id": "kusznicy",
+   "nazwa": "Kusznicy",
+   "cena": 70,
+   "opis": "+4 do Zasięgu całej floty",
+   "bonus": 4
+  },
+  {
+   "id": "sternicy",
+   "nazwa": "Szkoła sterników",
+   "cena": 70,
+   "opis": "+4 do Zwrotności całej floty",
+   "bonus": 4
+  },
+  {
+   "id": "latarnia",
+   "nazwa": "Latarnia",
+   "cena": 60,
+   "opis": "przy ataku 3 kości, liczą się 2 najlepsze"
+  },
+  {
+   "id": "stocznia",
+   "nazwa": "Stocznia",
+   "cena": 40,
+   "opis": "każdy następny statek tańszy o 15 bursztynów"
+  },
+  {
+   "id": "dok",
+   "nazwa": "Dok",
+   "cena": 30,
+   "opis": "koszt naprawy o połowę niższy"
+  }
+ ],
+ "porty": [
+  {
+   "nazwa": "Elbląg",
+   "broni": "Przemytnicy z Zalewu",
+   "natarcie": 8,
+   "ostrzal": 8,
+   "zaskoczenie": 7,
+   "lup": 10
+  },
+  {
+   "nazwa": "Królewiec",
+   "broni": "Chciwy celnik",
+   "natarcie": 11,
+   "ostrzal": 9,
+   "zaskoczenie": 10,
+   "lup": 10
+  },
+  {
+   "nazwa": "Kłajpeda",
+   "broni": "Sztorm",
+   "natarcie": 99,
+   "ostrzal": 99,
+   "zaskoczenie": 11,
+   "lup": 15
+  },
+  {
+   "nazwa": "Ryga",
+   "broni": "Rabusie z Dźwiny",
+   "natarcie": 21,
+   "ostrzal": 15,
+   "zaskoczenie": 17,
+   "lup": 15
+  },
+  {
+   "nazwa": "Rewel",
+   "broni": "Kra na Zatoce Fińskiej",
+   "natarcie": 22,
+   "ostrzal": 99,
+   "zaskoczenie": 20,
+   "lup": 20
+  },
+  {
+   "nazwa": "Visby",
+   "broni": "Bracia Witalijscy",
+   "natarcie": 40,
+   "ostrzal": 28,
+   "zaskoczenie": 26,
+   "lup": 25
+  },
+  {
+   "nazwa": "Sztokholm",
+   "broni": "Oblężenie miasta",
+   "natarcie": 48,
+   "ostrzal": 34,
+   "zaskoczenie": 24,
+   "lup": 30
+  },
+  {
+   "nazwa": "Kopenhaga",
+   "broni": "Flota króla Waldemara",
+   "natarcie": 54,
+   "ostrzal": 40,
+   "zaskoczenie": 99,
+   "lup": 35
+  },
+  {
+   "nazwa": "Lubeka",
+   "broni": "Najemnicy wrogiej gildii",
+   "natarcie": 74,
+   "ostrzal": 44,
+   "zaskoczenie": 30,
+   "lup": 40
+  },
+  {
+   "nazwa": "Londyn",
+   "broni": "Klaus Störtebeker",
+   "natarcie": 92,
+   "ostrzal": 58,
+   "zaskoczenie": 33,
+   "lup": 0
+  }
+ ],
+ "punkty_martwe": [
+  {
+   "nazwa": "Punkt martwy 1",
+   "pytanie": "",
+   "odpowiedz": "odp1",
+   "nagroda": 25
+  },
+  {
+   "nazwa": "Punkt martwy 2",
+   "pytanie": "",
+   "odpowiedz": "odp2",
+   "nagroda": 25
+  },
+  {
+   "nazwa": "Punkt martwy 3",
+   "pytanie": "",
+   "odpowiedz": "odp3",
+   "nagroda": 25
+  },
+  {
+   "nazwa": "Punkt martwy 4",
+   "pytanie": "",
+   "odpowiedz": "odp4",
+   "nagroda": 25
+  },
+  {
+   "nazwa": "Punkt martwy 5",
+   "pytanie": "",
+   "odpowiedz": "odp5",
+   "nagroda": 25
+  },
+  {
+   "nazwa": "Punkt martwy 6",
+   "pytanie": "",
+   "odpowiedz": "odp6",
+   "nagroda": 25
+  },
+  {
+   "nazwa": "Punkt martwy 7",
+   "pytanie": "",
+   "odpowiedz": "odp7",
+   "nagroda": 25
+  },
+  {
+   "nazwa": "Punkt martwy 8",
+   "pytanie": "",
+   "odpowiedz": "odp8",
+   "nagroda": 25
+  },
+  {
+   "nazwa": "Punkt martwy 9",
+   "pytanie": "",
+   "odpowiedz": "odp9",
+   "nagroda": 25
+  },
+  {
+   "nazwa": "Punkt martwy 10",
+   "pytanie": "",
+   "odpowiedz": "odp10",
+   "nagroda": 25
+  },
+  {
+   "nazwa": "Punkt martwy 11",
+   "pytanie": "",
+   "odpowiedz": "odp11",
+   "nagroda": 25
+  },
+  {
+   "nazwa": "Punkt martwy 12",
+   "pytanie": "",
+   "odpowiedz": "odp12",
+   "nagroda": 25
+  }
+ ],
+ "punkty_zywe": [
+  {
+   "nazwa": "Karczmarz",
+   "godziny": "08:40–10:00"
+  },
+  {
+   "nazwa": "Młynarz",
+   "godziny": "08:40–10:00"
+  },
+  {
+   "nazwa": "Piekarz",
+   "godziny": "08:40–10:00"
+  },
+  {
+   "nazwa": "Handlarz",
+   "godziny": "10:05–11:20"
+  },
+  {
+   "nazwa": "Szkutnik",
+   "godziny": "10:05–11:20"
+  },
+  {
+   "nazwa": "Mincerz",
+   "godziny": "10:05–11:20"
+  }
+ ],
+ "znajdzki": [
+  "BURSZTYN1",
+  "BURSZTYN2",
+  "BURSZTYN3",
+  "BURSZTYN4",
+  "BURSZTYN5",
+  "BURSZTYN6",
+  "BURSZTYN7",
+  "BURSZTYN8",
+  "BURSZTYN9",
+  "BURSZTYN10"
+ ]
+}
