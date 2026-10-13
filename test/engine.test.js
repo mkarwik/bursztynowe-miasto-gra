@@ -9,29 +9,33 @@ const ctx = (k, min) => ({ min: min == null ? 600 : min, kosc: k || kosci(3, 4) 
 
 test('scenariusz: zakup, atak, punkty, kram, sprzedaż', () => {
   const cfg = kopia(cfg0); cfg.ustawienia.zywy_wizyty = 1; let st = E.nowyStan(cfg), r;
+  const cena = n => cfg.statki.find(x => x.id === n).cena, bud = n => cfg.budowle.find(x => x.id === n).cena;
   assert.equal(st.b, 50); assert.equal(st.s.sznika, 1);
-  r = E.akcja(cfg, st, { typ: 'kup', co: 'sznika' }, ctx()); assert.ok(r.ok); st = r.st; assert.equal(st.b, 20); assert.equal(st.s.sznika, 2);
+  r = E.akcja(cfg, st, { typ: 'kup', co: 'sznika' }, ctx()); assert.ok(r.ok); st = r.st; assert.equal(st.b, 50 - cena('sznika')); assert.equal(st.s.sznika, 2);
   r = E.akcja(cfg, st, { typ: 'atak', taktyka: 'zaskoczenie' }, ctx(kosci(3, 4))); st = r.st;       // Zwrotność 4 + 7 = 11 >= 7
-  assert.ok(r.wygrana); assert.equal(st.p, 1); assert.equal(st.b, 30); assert.equal(st.z, 60);
-  r = E.akcja(cfg, st, { typ: 'martwy', punkt: 0, odpowiedz: ' ODP1 ' }, ctx()); st = r.st;          // 25 + 5 za port
-  assert.equal(r.delta, 30); assert.equal(st.b, 60);
+  assert.ok(r.wygrana); assert.equal(st.p, 1); assert.equal(r.delta, 10); assert.equal(st.z, 60);
+  r = E.akcja(cfg, st, { typ: 'martwy', punkt: 0, odpowiedz: ' ODP1 ' }, ctx()); st = r.st; assert.equal(r.delta, 30);   // 25 + 5 za port
   r = E.akcja(cfg, st, { typ: 'martwy', punkt: 0, odpowiedz: 'odp1' }, ctx()); assert.equal(r.ok, false);
   r = E.akcja(cfg, st, { typ: 'zywy', punkt: 0, ile: 56 }, ctx()); assert.equal(r.ok, false);
   r = E.akcja(cfg, st, { typ: 'zywy', punkt: 0, ile: 12.5 }, ctx()); assert.equal(r.ok, false);
   r = E.akcja(cfg, st, { typ: 'zywy', punkt: 1, ile: 0 }, ctx()); assert.ok(r.ok); assert.equal(r.delta, 0); assert.equal(r.st.zy[1], 1);
-  r = E.akcja(cfg, st, { typ: 'zywy', punkt: 0, ile: 55 }, ctx()); st = r.st; assert.equal(r.delta, 60); assert.equal(st.b, 120);
+  r = E.akcja(cfg, st, { typ: 'zywy', punkt: 0, ile: 55 }, ctx()); st = r.st; assert.equal(r.delta, 60);
   r = E.akcja(cfg, st, { typ: 'zywy', punkt: 0, ile: 55 }, ctx()); assert.equal(r.ok, false);
-  r = E.akcja(cfg, st, { typ: 'znajdzka', kod: 'bursztyn3' }, ctx()); st = r.st; assert.equal(r.delta, 15);
-  r = E.akcja(cfg, st, { typ: 'znajdzka', kod: 'BURSZTYN3' }, ctx()); assert.equal(r.ok, false);
-  r = E.akcja(cfg, st, { typ: 'znajdzka', kod: 'nie ma' }, ctx()); assert.equal(r.ok, false);
-  r = E.akcja(cfg, st, { typ: 'kup', co: 'kram' }, ctx()); st = r.st; assert.equal(st.b, 90);
+  r = E.akcja(cfg, st, { typ: 'znajdzka_foto' }, ctx()); st = r.st; assert.equal(r.delta, 15);
+  const b0 = st.b; r = E.akcja(cfg, st, { typ: 'kup', co: 'kram' }, ctx()); st = r.st; assert.equal(st.b, b0 - bud('kram'));
   r = E.akcja(cfg, st, { typ: 'kup', co: 'kram' }, ctx()); assert.equal(r.ok, false);
-  r = E.akcja(cfg, st, { typ: 'atak', taktyka: 'natarcie' }, ctx(kosci(2, 3))); st = r.st;           // Siła 2 + 5 = 7 < 11, naprawa 10
-  assert.equal(r.wygrana, false); assert.equal(st.b, 80); assert.equal(st.fail, 1); assert.equal(st.p, 1);
-  assert.equal(E.obronaPortu(cfg, st, 0), 12);
-  r = E.akcja(cfg, st, { typ: 'sprzedaj', co: 'sznika' }, ctx()); st = r.st; assert.equal(st.b, 95); assert.equal(st.s.sznika, 1);
+  r = E.akcja(cfg, st, { typ: 'atak', taktyka: 'natarcie' }, ctx(kosci(2, 3))); assert.equal(r.wygrana, false); assert.equal(r.delta, -10); st = r.st;  // naprawa 2 × 5
+  assert.equal(st.fail, 1); assert.equal(E.obronaPortu(cfg, st, 0), 12);
+  r = E.akcja(cfg, st, { typ: 'sprzedaj', co: 'sznika' }, ctx()); assert.equal(r.delta, Math.floor(cena('sznika') / 2)); st = r.st;
   r = E.akcja(cfg, st, { typ: 'martwy', punkt: 1, odpowiedz: 'odp2' }, ctx()); assert.equal(r.delta, 25 + 5 + 5);   // kram + 1 port
   assert.equal(st.z, 50 + 10 + 30 + 60 + 15);
+});
+
+test('punkt martwy: decyzje kadry o zgłoszeniu', () => {
+  const cfg = kopia(cfg0); let st = E.nowyStan(cfg), r;
+  r = E.akcja(cfg, st, { typ: 'martwy_nie', punkt: 2 }, ctx(null, 12 * 60)); assert.ok(r.ok); st = r.st; assert.equal(st.mt[2], 1); assert.equal(r.delta, 0);
+  r = E.akcja(cfg, st, { typ: 'martwy_ok', punkt: 2 }, ctx()); assert.equal(r.delta, 25); st = r.st; assert.equal(st.md[2], 1);
+  assert.equal(E.akcja(cfg, st, { typ: 'martwy_ok', punkt: 2 }, ctx()).ok, false, 'drugi raz nie');
 });
 
 test('punkt żywy: między wizytami trzeba zaliczyć inny punkt', () => {
@@ -68,15 +72,14 @@ test('punkt żywy: kilka wizyt do limitu, bez limitu przy zerze', () => {
 test('edycja kadry: dawanie i zabieranie rzeczy', () => {
   const cfg = kopia(cfg0); let st = E.nowyStan(cfg), r;
   r = E.edytujStan(cfg, st, {}); assert.equal(r.ok, false);
-  r = E.edytujStan(cfg, st, { b: 200, p: 3, s: { holk: 2, sznika: 0 }, bud: { kram: true, dok: true }, md: { 4: true }, mt: { 5: 2 }, zy: { 1: 2 }, zn: { 0: true } });
+  r = E.edytujStan(cfg, st, { b: 200, p: 3, s: { holk: 2, sznika: 0 }, bud: { kram: true, latarnia: true }, md: { 4: true }, mt: { 5: 2 }, zy: { 1: 2 }, zf: 3 });
   assert.ok(r.ok); st = r.st; assert.equal(r.delta, 150);
-  assert.equal(st.b, 200); assert.equal(st.p, 3); assert.equal(st.s.holk, 2); assert.equal(st.s.sznika, 0); assert.ok(st.bud.kram && st.bud.dok);
-  assert.equal(st.md[4], 1); assert.equal(st.mt[5], 2); assert.equal(st.zy[1], 2); assert.equal(st.zn[0], 1);
+  assert.equal(st.b, 200); assert.equal(st.p, 3); assert.equal(st.s.holk, 2); assert.equal(st.s.sznika, 0); assert.ok(st.bud.kram && st.bud.latarnia);
+  assert.equal(st.md[4], 1); assert.equal(st.mt[5], 2); assert.equal(st.zy[1], 2); assert.equal(st.zf, 3);
   assert.match(r.msg, /Holk 0 → 2/); assert.match(r.msg, /porty 0 → 3/);
   assert.equal(E.akcja(cfg, st, { typ: 'martwy', punkt: 4, odpowiedz: 'odp5' }, ctx()).ok, false);
-  assert.equal(E.akcja(cfg, st, { typ: 'znajdzka', kod: 'BURSZTYN1' }, ctx()).ok, false);
-  r = E.edytujStan(cfg, st, { bud: { kram: false }, md: { 4: false }, zn: { 0: false }, s: { holk: 1 }, p: 2 }); st = r.st;
-  assert.ok(!st.bud.kram && st.bud.dok); assert.ok(!st.md[4]); assert.ok(!st.zn[0]); assert.equal(st.s.holk, 1); assert.equal(st.p, 2);
+  r = E.edytujStan(cfg, st, { bud: { kram: false }, md: { 4: false }, zf: 0, s: { holk: 1 }, p: 2 }); st = r.st;
+  assert.ok(!st.bud.kram && st.bud.latarnia); assert.ok(!st.md[4]); assert.equal(st.zf, 0); assert.equal(st.s.holk, 1); assert.equal(st.p, 2);
   assert.equal(E.edytujStan(cfg, st, { p: 11 }).ok, false); assert.equal(E.edytujStan(cfg, st, { s: { holk: -1 } }).ok, false); assert.equal(E.edytujStan(cfg, st, { b: 'abc' }).ok, false);
   assert.equal(E.staty(cfg, st).sila, 13);
 });
@@ -102,13 +105,12 @@ test('odmowy: brak bursztynu, pełna flota, niemożliwa taktyka, minus', () => {
   st.p = 10; st.b = 50; r = E.akcja(cfg, st, { typ: 'atak', taktyka: 'natarcie' }, ctx()); assert.equal(r.ok, false);
 });
 
-test('nieudany atak: koszty według taktyki, dok, minus w skarbcu', () => {
+test('nieudany atak: koszty według taktyki, minus w skarbcu', () => {
   const cfg = kopia(cfg0); let st = E.nowyStan(cfg); st.s = { sznika: 0, krajer: 0, koga: 2, holk: 1 }; st.b = 30; st.p = 5;  // Visby 40/28/26
   assert.equal(E.staty(cfg, st).naprawa, 54);
   let r = E.akcja(cfg, st, { typ: 'atak', taktyka: 'natarcie' }, ctx(kosci(1, 1))); assert.equal(r.delta, -54); assert.equal(r.st.b, -24);
   r = E.akcja(cfg, st, { typ: 'atak', taktyka: 'ostrzal' }, ctx(kosci(1, 1))); assert.equal(r.delta, -27);
   r = E.akcja(cfg, st, { typ: 'atak', taktyka: 'zaskoczenie' }, ctx(kosci(1, 1))); assert.equal(r.delta, 0); assert.equal(r.st.fail, 1);
-  st.bud.dok = 1; r = E.akcja(cfg, st, { typ: 'atak', taktyka: 'natarcie' }, ctx(kosci(1, 1))); assert.equal(r.delta, -27);
 });
 
 test('łup: natarcie o połowę większy, skład, latarnia', () => {
@@ -118,13 +120,15 @@ test('łup: natarcie o połowę większy, skład, latarnia', () => {
   r = E.akcja(cfg, st, { typ: 'atak', taktyka: 'ostrzal' }, ctx(kosci(1, 6, 5))); assert.equal(r.kosci.length, 3); assert.match(r.msg, /kości 11/);
 });
 
-test('stocznia, bonusy budowli, kantor', () => {
+test('bonusy budowli, kantor, sprzedaż', () => {
   const cfg = kopia(cfg0); let st = E.nowyStan(cfg); st.b = 1000;
-  for (const b of ['stocznia', 'zbrojownia', 'kusznicy', 'sternicy', 'kantor']) st = E.akcja(cfg, st, { typ: 'kup', co: b }, ctx()).st;
-  const przed = st.b; st = E.akcja(cfg, st, { typ: 'kup', co: 'holk' }, ctx()).st; assert.equal(przed - st.b, 175);
-  const s = E.staty(cfg, st); assert.equal(s.sila, 1 + 13 + 4); assert.equal(s.zasieg, 2 + 4); assert.equal(s.zwrot, 2 + 4);
-  assert.equal(E.akcja(cfg, st, { typ: 'znajdzka', kod: 'BURSZTYN1' }, ctx()).delta, 30);
-  assert.equal(E.akcja(cfg, st, { typ: 'sprzedaj', co: 'holk' }, ctx()).delta, 95);
+  for (const b of ['zbrojownia', 'kusznicy', 'sternicy', 'kantor']) st = E.akcja(cfg, st, { typ: 'kup', co: b }, ctx()).st;
+  assert.equal(E.akcja(cfg, st, { typ: 'kup', co: 'stocznia' }, ctx()).ok, false, 'Stoczni już nie ma');
+  const holk = cfg.statki.find(x => x.id === 'holk');
+  const przed = st.b; st = E.akcja(cfg, st, { typ: 'kup', co: 'holk' }, ctx()).st; assert.equal(przed - st.b, holk.cena);
+  const s = E.staty(cfg, st); assert.equal(s.sila, 1 + holk.sila + 4); assert.equal(s.zasieg, holk.zasieg + 4); assert.equal(s.zwrot, 2 + holk.zwrot + 4);
+  assert.equal(E.akcja(cfg, st, { typ: 'znajdzka_foto' }, ctx()).delta, 30);
+  assert.equal(E.akcja(cfg, st, { typ: 'sprzedaj', co: 'holk' }, ctx()).delta, Math.floor(holk.cena / 2));
 });
 
 test('godziny: przed, ostatnie 10 minut, koniec', () => {

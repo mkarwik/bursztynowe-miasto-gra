@@ -74,7 +74,7 @@ function wpis(g, kto, opis, wynik, a) {
   if (a && a.typ) {
     w.typ = a.typ;
     if (a.punkt != null) w.pkt = Number(a.punkt);
-    if (a.typ === 'martwy') w.odp = String(a.odpowiedz || '').slice(0, 60);
+    if (/^martwy/.test(a.typ)) w.odp = String(a.odpowiedz || '').slice(0, 60);
     if (a.typ === 'znajdzka') w.kod = String(a.kod || '').slice(0, 40);
     if (a.typ === 'zywy' && wynik.ok) w.ile = Number(a.ile);
     if (wynik.bledna) w.bledna = true;
@@ -125,17 +125,30 @@ function dziennikGildii(g, ile) {
 
 // ---------- znajdźki ze zdjęciem ----------
 const MAX_ZDJ = 1500000;          // bajtów po zdekodowaniu; telefon i tak zmniejsza zdjęcie do ok. 200 KB
+// Zgłoszenie gildii: znajdźka albo punkt martwy, zdjęciem i/lub tekstem.
+// Punkt martwy z tekstem zgodnym z odpowiedzią zalicza się od razu. Reszta czeka na kadrę.
 function noweZgloszenie(g, a) {
-  const u = cfg.ustawienia, f = E.faza(cfg, teraz().min);
-  if (!u.zdjecia) return { ok: false, tekst: 'Zgłoszenia ze zdjęciem są wyłączone.' };
+  const u = cfg.ustawienia, f = E.faza(cfg, teraz().min), st = stany[g];
   if (f === 'przed') return { ok: false, tekst: 'Gra jeszcze się nie zaczęła.' };
   if (f === 'koniec') return { ok: false, tekst: 'Gra już się skończyła.' };
+  const rodzaj = a.rodzaj === 'martwy' ? 'martwy' : 'znajdzka';
   const tekst = String(a.tekst || '').trim().slice(0, 300);
   const foto = typeof a.foto === 'string' ? a.foto : '';
-  if (!tekst && !foto) return { ok: false, tekst: 'Dodajcie zdjęcie albo opis.' };
-  if (zgloszenia.filter(z => z.g === g && z.stan === 'czeka').length >= 3) return { ok: false, tekst: 'Macie już 3 zgłoszenia czekające na sprawdzenie. Poczekajcie na decyzję kadry.' };
-  const zal = (stany[g].zf || 0) + zgloszenia.filter(z => z.g === g && z.stan === 'czeka').length;
-  if (u.zdjecia_limit > 0 && zal >= u.zdjecia_limit) return { ok: false, tekst: 'Limit znajdziek ze zdjęć to ' + u.zdjecia_limit + '.' };
+  if (!tekst && !foto) return { ok: false, tekst: rodzaj === 'martwy' ? 'Wpiszcie odpowiedź albo dodajcie zdjęcie.' : 'Dodajcie zdjęcie albo opis.' };
+  const czekaG = zgloszenia.filter(z => z.g === g && z.stan === 'czeka');
+  let pkt = null;
+  if (rodzaj === 'martwy') {
+    pkt = Number(a.punkt); const p = cfg.punkty_martwe[pkt];
+    if (!p) return { ok: false, tekst: 'Nie ma takiego punktu.' };
+    if (st.md[pkt]) return { ok: false, tekst: 'Ten punkt macie już zaliczony.' };
+    if ((st.mt[pkt] || 0) >= u.proby_martwy) return { ok: false, tekst: 'Wykorzystaliście już wszystkie próby na tym punkcie.' };
+    if (czekaG.some(z => z.rodzaj === 'martwy' && z.pkt === pkt)) return { ok: false, tekst: 'Odpowiedź na ten punkt czeka już na sprawdzenie.' };
+    // zgodny tekst: zalicza się od razu, bez kadry
+    if (tekst && E.norm(tekst) === E.norm(p.odpowiedz)) return wykonaj(g, 'gildia', { typ: 'martwy', punkt: pkt, odpowiedz: tekst });
+  } else {
+    if (u.zdjecia_limit > 0 && (st.zf || 0) + czekaG.filter(z => z.rodzaj !== 'martwy').length >= u.zdjecia_limit) return { ok: false, tekst: 'Macie już wszystkie znajdźki (' + u.zdjecia_limit + ').' };
+  }
+  if (czekaG.length >= 5) return { ok: false, tekst: 'Macie już 5 zgłoszeń czekających na sprawdzenie. Poczekajcie chwilę na kadrę.' };
   const id = Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
   let zdjecie = false;
   if (foto) {
@@ -147,30 +160,37 @@ function noweZgloszenie(g, a) {
     zdjecie = m[1];
   }
   const t = teraz();
-  zgloszenia.push({ id, g, t: Date.now(), czas: t.czas, tekst, zdjecie, stan: 'czeka' });
+  zgloszenia.push({ id, g, t: Date.now(), czas: t.czas, rodzaj, pkt, tekst, zdjecie, stan: 'czeka' });
   zapiszZgl();
-  wpis(g, 'gildia', 'Zgłoszenie znajdźki' + (zdjecie ? ' ze zdjęciem' : ''), { ok: true, msg: 'Czeka na sprawdzenie przez kadrę.', delta: 0 }, { typ: 'zdjecie' });
-  return { ok: true, tekst: 'Wysłane. Kadra sprawdzi zgłoszenie i dostaniecie powiadomienie.' };
+  const opis = rodzaj === 'martwy' ? 'Zgłoszenie: ' + cfg.punkty_martwe[pkt].nazwa : 'Zgłoszenie znajdźki';
+  wpis(g, 'gildia', opis + (zdjecie ? ' (zdjęcie)' : ''), { ok: true, msg: 'Czeka na sprawdzenie przez kadrę.', delta: 0 }, { typ: 'zdjecie' });
+  return { ok: true, tekst: 'Wysłane do sprawdzenia.' };
 }
 function decyzja(a) {
   const z = zgloszenia.find(x => x.id === a.id);
   if (!z) return { ok: false, tekst: 'Nie ma takiego zgłoszenia.' };
   if (z.stan !== 'czeka') return { ok: false, tekst: 'To zgłoszenie jest już sprawdzone (' + (z.stan === 'ok' ? 'zaliczone' : 'odrzucone') + ').' };
-  const kiedy = teraz().czas.slice(0, 5);
+  if (a.decyzja !== 'ok' && a.decyzja !== 'nie') return { ok: false, tekst: 'Wybierzcie: zalicz albo odrzuć.' };
+  const kiedy = teraz().czas.slice(0, 5), nazwa = (cfg.gildie[z.g] || {}).nazwa;
+  const powod = String(a.powod || '').trim().slice(0, 200);
+  if (z.rodzaj === 'martwy') {
+    const w = wykonaj(z.g, 'kadra', { typ: a.decyzja === 'ok' ? 'martwy_ok' : 'martwy_nie', punkt: z.pkt, odpowiedz: z.tekst });
+    if (!w.ok && a.decyzja === 'ok') return { ok: false, tekst: w.tekst };
+    z.stan = a.decyzja; z.delta = a.decyzja === 'ok' ? dziennik[dziennik.length - 1].delta : 0; z.powod = a.decyzja === 'nie' ? powod : ''; z.decyzja = kiedy;
+    zapiszZgl();
+    return { ok: true, tekst: nazwa + ': ' + (a.decyzja === 'ok' ? 'zaliczone, +' + z.delta : 'odrzucone') + '.' };
+  }
   if (a.decyzja === 'ok') {
     const w = wykonaj(z.g, 'kadra', { typ: 'znajdzka_foto' });
     if (!w.ok) return { ok: false, tekst: w.tekst };
     z.stan = 'ok'; z.delta = dziennik[dziennik.length - 1].delta; z.decyzja = kiedy;
     zapiszZgl();
-    return { ok: true, tekst: (cfg.gildie[z.g] || {}).nazwa + ': zaliczone, +' + z.delta + '.' };
+    return { ok: true, tekst: nazwa + ': zaliczone, +' + z.delta + '.' };
   }
-  if (a.decyzja === 'nie') {
-    z.stan = 'nie'; z.powod = String(a.powod || '').trim().slice(0, 200); z.decyzja = kiedy;
-    zapiszZgl();
-    wpis(z.g, 'kadra', 'Zgłoszenie znajdźki odrzucone', { ok: true, msg: 'Odrzucone' + (z.powod ? ': ' + z.powod : '') + '.', delta: 0 }, { typ: 'zdjecie_nie' });
-    return { ok: true, tekst: (cfg.gildie[z.g] || {}).nazwa + ': odrzucone.' };
-  }
-  return { ok: false, tekst: 'Wybierzcie: zalicz albo odrzuć.' };
+  z.stan = 'nie'; z.powod = powod; z.decyzja = kiedy;
+  zapiszZgl();
+  wpis(z.g, 'kadra', 'Zgłoszenie znajdźki odrzucone', { ok: true, msg: 'Odrzucone' + (z.powod ? ': ' + z.powod : '') + '.', delta: 0 }, { typ: 'zdjecie_nie' });
+  return { ok: true, tekst: nazwa + ': odrzucone.' };
 }
 
 // Kto i kiedy ostatnio był w aplikacji. Tylko w pamięci: po restarcie serwera liczy się od nowa.
@@ -189,14 +209,19 @@ function obecnosc(r, body) {
 }
 let ai = { tekst: '', czas: '', blad: '', trwa: false, ostatnio: 0 };
 function nadzor() { const t = teraz(); ob.zgloszenia = zgloszenia; return N.analiza(cfg, stany, dziennik, ob, t.min, Date.now()); }
-const zglDlaGildii = g => zgloszenia.filter(z => z.g === g).slice(-20).reverse().map(z => ({ id: z.id, czas: z.czas.slice(0, 5), tekst: z.tekst, zdjecie: z.zdjecie, stan: z.stan, powod: z.powod || '', delta: z.delta || 0 }));
-const zglDlaKadry = () => zgloszenia.slice(-200).map(z => Object.assign({}, z, { gildia: (cfg.gildie[z.g] || { nazwa: '?' }).nazwa }));
+const zglDlaGildii = g => zgloszenia.filter(z => z.g === g).slice(-30).reverse().map(z => ({ id: z.id, czas: z.czas.slice(0, 5), rodzaj: z.rodzaj || 'znajdzka', pkt: z.pkt, nazwa: z.rodzaj === 'martwy' ? (cfg.punkty_martwe[z.pkt] || {}).nazwa : 'Znajdźka', tekst: z.tekst, zdjecie: z.zdjecie, stan: z.stan, powod: z.powod || '', delta: z.delta || 0 }));
+const zglDlaKadry = () => zgloszenia.slice(-300).map(z => {
+  const o = Object.assign({}, z, { gildia: (cfg.gildie[z.g] || { nazwa: '?' }).nazwa, rodzaj: z.rodzaj || 'znajdzka' });
+  if (o.rodzaj === 'martwy') { const p = cfg.punkty_martwe[z.pkt] || {}; o.punkt = p.nazwa; o.pytanie = p.pytanie || ''; o.odpowiedz = p.odpowiedz || ''; }
+  return o;
+});
 
 function widok(r) {
   const t = teraz();
   if (r.rola === 'gildia') {
     const w = E.widokGildii(cfg, stany, r.i, t.min);
     w.dziennik = dziennikGildii(r.i, 15); w.teraz = t.czas.slice(0, 5); w.zgloszenia = zglDlaGildii(r.i);
+    w.martwe.forEach(p => { p.czeka = zgloszenia.some(z => z.g === r.i && z.rodzaj === 'martwy' && z.pkt === p.nr && z.stan === 'czeka'); });
     return w;
   }
   if (r.rola === 'punktowy') {
@@ -232,7 +257,7 @@ function api(body) {
   if (a && typeof a === 'object') {
     if (r.rola === 'gildia') {
       if (a.typ === 'zdjecie') komunikat = noweZgloszenie(r.i, a);
-      else if (!['kup', 'sprzedaj', 'atak', 'martwy', 'znajdzka'].includes(a.typ)) return { blad: 'Gildia nie może tego zgłosić.' };
+      else if (!['kup', 'sprzedaj', 'atak'].includes(a.typ)) return { blad: 'Gildia nie może tego zgłosić.' };
       else komunikat = wykonaj(r.i, 'gildia', a);
     } else if (r.rola === 'punktowy') {
       if (a.typ !== 'zywy') return { blad: 'Punktowy może tylko zaliczać punkty żywe.' };

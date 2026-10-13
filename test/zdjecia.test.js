@@ -40,11 +40,22 @@ test('serwer: zgłoszenie ze zdjęciem od wysyłki do decyzji', async () => {
     g = await api('gildia1-zmien', { typ: 'zdjecie', foto: 'data:text/html;base64,PHNjcmlwdD4=' }); assert.equal(g.komunikat.ok, false, 'tylko obrazy');
     assert.equal(g.widok.zgloszenia.length, 2); assert.ok(g.widok.zgloszenia.every(z => z.stan === 'czeka'));
     await api('gildia1-zmien', { typ: 'zdjecie', tekst: 'trzecie' });
-    g = await api('gildia1-zmien', { typ: 'zdjecie', tekst: 'czwarte' }); assert.equal(g.komunikat.ok, false, 'najwyżej 3 czekające');
+    // punkt martwy: zgodna odpowiedź zalicza się od razu, inna czeka na kadrę, drugi raz na ten sam punkt nie
+    g = await api('gildia1-zmien', { typ: 'zdjecie', rodzaj: 'martwy', punkt: 0, tekst: ' ODP1 ' }); assert.ok(g.komunikat.ok); assert.equal(g.widok.martwe[0].zaliczony, true);
+    g = await api('gildia1-zmien', { typ: 'zdjecie', rodzaj: 'martwy', punkt: 1, tekst: 'chyba lew' }); assert.ok(g.komunikat.ok); assert.equal(g.widok.martwe[1].czeka, true);
+    g = await api('gildia1-zmien', { typ: 'zdjecie', rodzaj: 'martwy', punkt: 1, tekst: 'odp2' }); assert.equal(g.komunikat.ok, false, 'czeka już');
+    await api('gildia1-zmien', { typ: 'zdjecie', rodzaj: 'martwy', punkt: 2, foto: PNG });
+    g = await api('gildia1-zmien', { typ: 'zdjecie', tekst: 'szóste' }); assert.equal(g.komunikat.ok, false, 'najwyżej 5 czekających');
+    let km = (await api('k')).widok.zgloszenia.filter(z => z.rodzaj === 'martwy' && z.stan === 'czeka');
+    assert.equal(km.length, 2); assert.equal(km[0].odpowiedz, 'odp2', 'kadra widzi poprawną odpowiedź');
+    let r = await api('k', { typ: 'zgloszenie', id: km[0].id, decyzja: 'nie', powod: 'to nie lew' }); assert.ok(r.komunikat.ok);
+    r = await api('k', { typ: 'zgloszenie', id: km[1].id, decyzja: 'ok' }); assert.ok(r.komunikat.ok);
+    g = await api('gildia1-zmien'); assert.equal(g.widok.martwe[1].zostaloProb, 1); assert.equal(g.widok.martwe[1].czeka, false); assert.equal(g.widok.martwe[2].zaliczony, true);
+    assert.equal(g.widok.zgloszenia.find(z => z.rodzaj === 'martwy' && z.pkt === 1).powod, 'to nie lew');
     // gildia nie może sama zaliczać
     g = await api('gildia1-zmien', { typ: 'zgloszenie', id: 'x', decyzja: 'ok' }); assert.ok(g.blad);
 
-    let k = await api('k'); const czeka = k.widok.zgloszenia.filter(z => z.stan === 'czeka');
+    let k = await api('k'); const czeka = k.widok.zgloszenia.filter(z => z.stan === 'czeka' && z.rodzaj === 'znajdzka');
     assert.equal(czeka.length, 3);
     const zFoto = czeka.find(z => z.zdjecie), zTekst = czeka.find(z => z.tekst === 'Sam opis bez zdjęcia');
     assert.equal(zFoto.gildia, 'Gildia 1');
@@ -60,14 +71,14 @@ test('serwer: zgłoszenie ze zdjęciem od wysyłki do decyzji', async () => {
     k = await api('k', { typ: 'zgloszenie', id: zFoto.id, decyzja: 'ok' }); assert.equal(k.komunikat.ok, false, 'drugi raz nie');
     k = await api('k', { typ: 'zgloszenie', id: zTekst.id, decyzja: 'nie', powod: 'Nie widać tabliczki' }); assert.ok(k.komunikat.ok);
     g = await api('gildia1-zmien');
-    assert.equal(g.widok.bursztyn, 65); assert.equal(g.widok.znajdzki.zeZdjec, 1);
+    assert.equal(g.widok.znajdzki.znalezione, 1);
     const ok = g.widok.zgloszenia.find(z => z.id === zFoto.id), nie = g.widok.zgloszenia.find(z => z.id === zTekst.id);
     assert.equal(ok.stan, 'ok'); assert.equal(ok.delta, 15); assert.equal(nie.stan, 'nie'); assert.equal(nie.powod, 'Nie widać tabliczki');
     assert.ok(g.widok.dziennik.some(d => /Znajdźka ze zdjęcia zaliczona/.test(d.wynik)));
 
     // trwałość po restarcie
     await stop(); await start();
-    k = await api('k'); assert.equal(k.widok.zgloszenia.length, 3);
+    k = await api('k'); assert.equal(k.widok.zgloszenia.length, 5, 'zgodna odpowiedź nie tworzy zgłoszenia');
     assert.equal((await zdj('k', zFoto.id)).status, 200);
     // usunięcie zdjęć
     k = await api('k', { typ: 'usun_zdjecia' }); assert.ok(k.komunikat.ok);

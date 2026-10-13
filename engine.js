@@ -38,12 +38,11 @@ function staty(cfg, st) {
   for (const b of cfg.budowle) {
     if (st.bud[b.id] && BUD_STAT[b.id]) o[BUD_STAT[b.id]] += (b.bonus || 0);
   }
-  if (st.bud.dok) o.naprawa = Math.ceil(o.naprawa / 2);
   return o;
 }
 
 function cenaStatku(cfg, st, x) {
-  return Math.max(0, x.cena - (st.bud.stocznia ? cfg.ustawienia.stocznia_znizka : 0));
+  return x.cena;
 }
 
 function hhmm(min) { return String(Math.floor(min / 60)).padStart(2, '0') + ':' + String(min % 60).padStart(2, '0'); }
@@ -96,7 +95,7 @@ function obronaPortu(cfg, st, t) {
 
 /**
  * Wykonuje jedną akcję. Zwraca { ok, msg, delta, st } z nowym stanem (wejściowy stan nie jest zmieniany).
- * a.typ: kup | sprzedaj | atak | martwy | znajdzka | znajdzka_foto | zywy | korekta
+ * a.typ: kup | sprzedaj | atak | martwy | martwy_ok | martwy_nie | znajdzka | znajdzka_foto | zywy | korekta
  * ctx: { min: minuty od północy, kosc: () => 1..6 }
  */
 function akcja(cfg, stanWe, a, ctx) {
@@ -107,7 +106,7 @@ function akcja(cfg, stanWe, a, ctx) {
   const tak = (msg, delta, extra) => Object.assign({ ok: true, msg, delta, st }, extra || {});
 
   // korekty i zaliczenia zdjęć przez kadrę działają także po końcu gry (kadra może sprawdzać z opóźnieniem)
-  if (a.typ !== 'korekta' && a.typ !== 'znajdzka_foto') {
+  if (!['korekta', 'znajdzka_foto', 'martwy_ok', 'martwy_nie'].includes(a.typ)) {
     if (f === 'przed') return nie('Gra jeszcze się nie zaczęła.');
     if (f === 'koniec') return nie('Gra już się skończyła.');
   }
@@ -211,6 +210,21 @@ function akcja(cfg, stanWe, a, ctx) {
     const nagroda = ocena > 0 ? ocena + (st.bud.kram ? u.kram_bonus : 0) + st.p * u.port_bonus : 0;
     st.zy[i] = wizyty + 1; st.zt[i] = ctx.min; st.ost = 'z' + i; st.b += nagroda; st.z += nagroda;
     return tak('Punkt żywy ' + pkt.nazwa + (wizyty ? ' (wizyta ' + (wizyty + 1) + ')' : '') + ': ocena ' + ocena + (nagroda !== ocena ? ', z bonusami +' + nagroda : ', +' + nagroda) + '.', nagroda);
+  }
+
+  // decyzje kadry o zgłoszeniu z punktu martwego (zdjęcie albo odpowiedź, której nie dało się sprawdzić automatycznie)
+  if (a.typ === 'martwy_ok' || a.typ === 'martwy_nie') {
+    const i = Number(a.punkt), pkt = cfg.punkty_martwe[i];
+    if (!pkt) return nie('Nie ma takiego punktu.');
+    if (st.md[i]) return nie('Ten punkt jest już zaliczony.');
+    st.mt[i] = (st.mt[i] || 0) + 1; st.ost = 'm' + i;
+    if (a.typ === 'martwy_nie') {
+      const zostalo = Math.max(0, u.proby_martwy - st.mt[i]);
+      return tak('Punkt ' + pkt.nazwa + ': odpowiedź odrzucona. ' + (zostalo > 0 ? 'Zostało prób: ' + zostalo + '.' : 'To była ostatnia próba.'), 0, { bledna: true });
+    }
+    const nagroda = pkt.nagroda + (st.bud.kram ? u.kram_bonus : 0) + st.p * u.port_bonus;
+    st.md[i] = 1; st.b += nagroda; st.z += nagroda;
+    return tak(pkt.nazwa + ' zaliczony, +' + nagroda + '.', nagroda);
   }
 
   if (a.typ === 'znajdzka_foto') {
@@ -324,8 +338,8 @@ function widokGildii(cfg, stany, i, min) {
     tabelaPortow: cfg.porty.map((p, k) => ({ nr: k + 1, nazwa: p.nazwa, broni: p.broni, obrona: TAKTYKI.map(t => p[t.id] >= NIE_DA_SIE ? null : p[t.id]), lup: p.lup, zdobyty: k < st.p, nastepny: k === st.p })),
     martwe: cfg.punkty_martwe.map((p, k) => ({ nr: k, nazwa: p.nazwa, pytanie: p.pytanie || '', nagroda: p.nagroda, zaliczony: !!st.md[k], zostaloProb: Math.max(0, u.proby_martwy - (st.mt[k] || 0)) })),
     zywe: cfg.punkty_zywe.map((p, k) => { const od = kiedyZnowu(cfg, st, k); return { nazwa: p.nazwa, wizyty: st.zy[k] || 0, limit: u.zywy_wizyty, znowuOd: od != null && min < od ? hhmm(od) : null, innyNajpierw: musiInny(cfg, st, k) }; }),
-    znajdzki: { znalezione: Object.keys(st.zn).length + (st.zf || 0), zKodu: Object.keys(st.zn).length, zeZdjec: st.zf || 0, wszystkie: cfg.znajdzki.length },
-    zdjecia: !!u.zdjecia, zdjeciaLimit: u.zdjecia_limit || 0,
+    znajdzki: { znalezione: Object.keys(st.zn).length + (st.zf || 0), wszystkie: u.zdjecia_limit || 0 },
+    zdjecia: !!u.zdjecia, zdjeciaLimit: u.zdjecia_limit || 0, probyMartwy: u.proby_martwy,
     ranking: ukryty ? [] : rank.map(x => ({ miejsce: x.miejsce, nazwa: x.nazwa, porty: x.porty, ja: x.i === i })),
     godziny: u.pilnuj_godzin ? { ostatnie: u.ostatnie_10_min, koniec: u.koniec_gry } : null,
   };
@@ -339,7 +353,7 @@ function sprawdzKonfiguracje(cfg) {
   lista('gildie', 1); lista('statki', 1); lista('budowle', 0); lista('porty', 1); lista('punkty_martwe', 0); lista('punkty_zywe', 0); lista('znajdzki', 0);
   if (b.length) return b;
   const u = cfg.ustawienia;
-  for (const k of ['start_bursztyn', 'port_bonus', 'kram_bonus', 'sklad_bonus', 'kantor_bonus', 'stocznia_znizka', 'natarcie_mnoznik', 'limit_statkow', 'proby_martwy', 'nagroda_znajdzka', 'zywy_min', 'zywy_max', 'zywy_wizyty', 'zywy_przerwa_min', 'ukryj_ranking_min', 'zdjecia_limit']) {
+  for (const k of ['start_bursztyn', 'port_bonus', 'kram_bonus', 'sklad_bonus', 'kantor_bonus', 'natarcie_mnoznik', 'limit_statkow', 'proby_martwy', 'nagroda_znajdzka', 'zywy_min', 'zywy_max', 'zywy_wizyty', 'zywy_przerwa_min', 'ukryj_ranking_min', 'zdjecia_limit']) {
     if (typeof u[k] !== 'number' || !Number.isFinite(u[k])) b.push('Ustawienie „' + k + '” musi być liczbą.');
   }
   for (const k of ['start_gry', 'ostatnie_10_min', 'koniec_gry']) if (minuty(u[k]) == null) b.push('Ustawienie „' + k + '” musi mieć postać GG:MM.');

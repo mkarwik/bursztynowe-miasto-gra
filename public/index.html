@@ -64,7 +64,7 @@ th{ font-size:.7rem; text-transform:uppercase; letter-spacing:.05em; color:var(-
 td.n,th.n{ text-align:right; font-variant-numeric:tabular-nums; white-space:nowrap }
 tr.me td{ background:var(--amber-tint); font-weight:700 } tr.done td{ color:var(--mute) } tr.cur td{ background:var(--tint); font-weight:700 }
 .scroll{ overflow-x:auto }
-label.btn{ display:inline-flex; align-items:center } .zdj img{ display:block; width:100%; max-height:420px; object-fit:contain; background:var(--tint); margin:8px 0 } .zdj .opis{ font-size:1.05rem; margin:6px 0 } .foto{ margin:8px 0; display:flex; flex-direction:column; gap:8px; align-items:flex-start } .foto img{ max-width:100%; max-height:260px; border:1px solid var(--line) } textarea{ width:100%; padding:10px; border:1px solid var(--line); background:#fff } .zgl{ margin-top:10px; border-top:1px solid var(--line); padding-top:6px } .zgl .row{ padding:5px 0; align-items:flex-start }
+label.btn{ display:inline-flex; align-items:center; justify-content:center } .btn.ico{ min-width:48px; padding:0 10px; font-size:1.2rem } .ile{ font-family:var(--body); font-size:.95rem; color:var(--mute); font-weight:500 } .lnk{ border:0; background:none; padding:2px 0; color:var(--sea); text-decoration:underline; font-size:.85rem; cursor:pointer } .lista .row{ padding:7px 0; border-bottom:1px solid var(--line); gap:10px } .lista .row:last-child{ border-bottom:0 } .card.done{ opacity:.6 } .miniat{ display:flex; gap:10px; align-items:center; margin-top:8px } .miniat img{ height:64px; border:1px solid var(--line) } table.flota td{ vertical-align:middle } table.flota .btn.mini{ min-width:58px } .zdj img{ display:block; width:100%; max-height:420px; object-fit:contain; background:var(--tint); margin:8px 0 } .zdj .opis{ font-size:1.05rem; margin:6px 0 } .foto{ margin:8px 0; display:flex; flex-direction:column; gap:8px; align-items:flex-start } .foto img{ max-width:100%; max-height:260px; border:1px solid var(--line) } textarea{ width:100%; padding:10px; border:1px solid var(--line); background:#fff } .zgl{ margin-top:10px; border-top:1px solid var(--line); padding-top:6px } .zgl .row{ padding:5px 0; align-items:flex-start }
 .alert{ border-left:5px solid var(--line) } .alert.zle{ border-left-color:var(--bad); background:var(--bad-tint) } .alert.uwaga{ border-left-color:var(--amber) } .alert p{ margin-top:4px; white-space:pre-line } .btn.mini{ min-height:32px; padding:4px 12px; font-size:.85rem } .ai{ white-space:pre-wrap; margin-top:6px; line-height:1.45 }
 table.cmp{ margin-bottom:6px } table.atk td{ vertical-align:middle } .btns.col{ flex-direction:column; align-items:stretch } .zasady ul{ margin:8px 0 0 18px; padding:0 } .zasady li{ margin:4px 0; font-size:.92rem } .zasady summary{ cursor:pointer } table.cmp td:first-child{ white-space:nowrap } table.cmp th,table.cmp td{ padding:7px 5px } table.cmp .n{ text-align:right; width:52px; font-variant-numeric:tabular-nums }
 table.porty th,table.porty td{ padding:7px 5px } table.porty td.n,table.porty th.n{ width:46px }
@@ -98,7 +98,7 @@ details summary{ cursor:pointer; font-weight:700; color:var(--sea); padding:6px 
 <div id="warstwa"></div>
 <script>
 'use strict';
-var S = { haslo: '', w: null, tab: '', punkt: null, filtr: '', cfgEdycja: null, zajete: false };
+var S = { haslo: '', w: null, tab: '', punkt: null, filtr: '', cfgEdycja: null, zajete: false, foty: {}, teksty: {} };
 var $app = document.getElementById('app'), $war = document.getElementById('warstwa');
 function esc(s){ return String(s == null ? '' : s).replace(/[&<>"']/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
 function pam(k, v){ try{ if (v === undefined) return localStorage.getItem(k); if (v === null) localStorage.removeItem(k); else localStorage.setItem(k, v); }catch(e){} return null; }
@@ -130,7 +130,7 @@ function wykonaj(akcja){
     S.zajete = false;
     if (o.blad){ if (o.zleHaslo) return wyloguj(o.blad); toast(o.blad, true); return; }
     S.w = o.widok; if (akcja && akcja.typ === 'zapisz_konfiguracje' && o.komunikat && o.komunikat.ok){ S.cfgEdycja = null; S.cfgOtwarte = null; }
-    if (akcja && akcja.typ === 'zdjecie' && o.komunikat && o.komunikat.ok){ S.foto = null; S.zglTekst = ''; }
+    if (akcja && akcja.typ === 'zdjecie' && o.komunikat && o.komunikat.ok && S.wysylam){ delete S.foty[S.wysylam]; delete S.teksty[S.wysylam]; S.wysylam = null; }
     rysuj();
     var k = o.komunikat; if (!k) return;
     if (k.atak) wynikAtaku(k); else toast(k.tekst, !k.ok);
@@ -214,11 +214,8 @@ function powiadomZgloszenia(w){
   var nowe = (w.zgloszenia || []).filter(function(z){ return z.stan !== 'czeka' && !znane[z.id]; });
   if (!nowe.length) return;
   nowe.forEach(function(z){ znane[z.id] = 1; }); pam('bm_zgl', JSON.stringify(znane));
-  var ok = nowe.filter(function(z){ return z.stan === 'ok'; }), nie = nowe.filter(function(z){ return z.stan === 'nie'; });
-  var t = [];
-  if (ok.length) t.push('Kadra zaliczyła znajdźkę ze zdjęcia: +' + ok.reduce(function(a, z){ return a + z.delta; }, 0) + '.');
-  if (nie.length) t.push('Kadra odrzuciła zgłoszenie' + (nie[0].powod ? ': ' + nie[0].powod : '') + '.');
-  setTimeout(function(){ toast(t.join(' '), !ok.length); }, 50);
+  var t = nowe.map(function(z){ return z.nazwa + ': ' + (z.stan === 'ok' ? 'zaliczone, +' + z.delta : 'odrzucone' + (z.powod ? ' (' + z.powod + ')' : '')); });
+  setTimeout(function(){ toast(t.join('. ') + '.', !nowe.some(function(z){ return z.stan === 'ok'; })); }, 50);
   try{ navigator.vibrate && navigator.vibrate([120, 60, 120]); }catch(e){}
 }
 function rysujGildie(){
@@ -226,8 +223,8 @@ function rysujGildie(){
   powiadomZgloszenia(w);
   var h = pasek(w.nazwa, [[w.bursztyn, 'bursztyn', 'amb'], [w.porty + '/' + w.ilePortow, 'porty'], [w.rankingUkryty ? '?' : w.miejsce + '.', 'miejsce']]) + '<div class="wrap">';
   if (w.zamkniete) h += '<div class="banner bad">' + esc(w.zamkniete) + '</div>';
-  else if (w.faza === 'ostatnie') h += '<div class="banner">Ostatnie 10 minut. Wolno przeprowadzić już tylko jeden atak. Koniec gry o ' + esc(w.godziny.koniec) + '.</div>';
-  if (w.bursztyn < 0) h += '<div class="banner bad">Skarbiec jest na minusie. Nie możecie kupować ani atakować, dopóki nie odrobicie długu na punktach.</div>';
+  else if (w.faza === 'ostatnie') h += '<div class="banner">Ostatnie 10 minut: zostaje jeden atak.</div>';
+  if (w.bursztyn < 0) h += '<div class="banner bad">Skarbiec na minusie: zakupy i ataki zablokowane.</div>';
   if (S.tab === 'flota') h += gFlota(w);
   if (S.tab === 'atak') h += gAtak(w);
   if (S.tab === 'punkty') h += gPunkty(w);
@@ -236,41 +233,47 @@ function rysujGildie(){
   h += '</div>' + zakladki([['flota', 'Flota'], ['atak', 'Atak'], ['punkty', 'Punkty'], ['dziennik', 'Dziennik'], ['ranking', 'Ranking']]);
   $app.innerHTML = h; podepnijZakladki(); podepnijWyloguj();
   var i, b = $app.querySelectorAll('[data-kup]');
-  for (i = 0; i < b.length; i++) b[i].onclick = function(){ var d = this.dataset; potwierdz('Kupić: ' + d.nazwa + '?', 'Cena: <b>' + esc(d.cena) + '</b> bursztynów. Zakupu nie da się cofnąć.', 'Kupuję', { typ:'kup', co: d.kup }); };
+  for (i = 0; i < b.length; i++) b[i].onclick = function(){ var d = this.dataset; potwierdz('Kupić: ' + d.nazwa + '?', 'Za <b>' + esc(d.cena) + '</b> bursztynów.', 'Kupuję', { typ:'kup', co: d.kup }); };
   b = $app.querySelectorAll('[data-sprzedaj]');
-  for (i = 0; i < b.length; i++) b[i].onclick = function(){ var d = this.dataset; potwierdz('Sprzedać: ' + d.nazwa + '?', 'Dostaniecie <b>' + esc(d.zwrot) + '</b> bursztynów, czyli połowę ceny.', 'Sprzedaję', { typ:'sprzedaj', co: d.sprzedaj }); };
+  for (i = 0; i < b.length; i++) b[i].onclick = function(){ var d = this.dataset; potwierdz('Sprzedać: ' + d.nazwa + '?', 'Dostaniecie <b>' + esc(d.zwrot) + '</b> bursztynów.', 'Sprzedaję', { typ:'sprzedaj', co: d.sprzedaj }); };
   b = $app.querySelectorAll('[data-atak]');
   for (i = 0; i < b.length; i++) b[i].onclick = function(){ var d = this.dataset; potwierdz('Atak: ' + d.nazwa + '?', esc(d.opis), 'Atakujemy', { typ:'atak', taktyka: d.atak }); };
   var zs = $app.querySelector('.zasady'); if (zs) zs.ontoggle = function(){ pam('bm_zasady', this.open ? '1' : '0'); };
-  b = $app.querySelectorAll('[data-martwy]');
-  for (i = 0; i < b.length; i++) b[i].onsubmit = function(e){ e.preventDefault(); var v = this.querySelector('input').value.trim(); if (!v) return toast('Wpiszcie odpowiedź.', true); this.querySelector('input').setAttribute('data-stale', '1'); wykonaj({ typ:'martwy', punkt: Number(this.dataset.martwy), odpowiedz: v }); };
-  var fp = document.getElementById('fotoPlik');
-  if (fp) fp.onchange = function(){ var f = this.files && this.files[0]; if (!f) return; zmniejsz(f, function(url){ if (!url) return toast('Nie udało się wczytać zdjęcia.', true); S.foto = url; rysuj(); }); };
-  var zt = document.getElementById('zglTekst'); if (zt) zt.oninput = function(){ S.zglTekst = this.value; };
-  var fu = document.getElementById('fotoUsun'); if (fu) fu.onclick = function(){ S.foto = null; rysuj(); };
-  var zw = document.getElementById('zglWyslij');
-  if (zw) zw.onclick = function(){ var t = document.getElementById('zglTekst'); var v = t.value.trim(); if (!v && !S.foto) return toast('Dodajcie zdjęcie albo opis.', true); t.setAttribute('data-stale', '1'); wykonaj({ typ:'zdjecie', tekst: v, foto: S.foto || '' }); };
-  var fz = document.getElementById('fZnajdzka');
-  if (fz) fz.onsubmit = function(e){ e.preventDefault(); var v = this.querySelector('input').value.trim(); if (!v) return toast('Wpiszcie kod.', true); this.querySelector('input').setAttribute('data-stale', '1'); wykonaj({ typ:'znajdzka', kod: v }); };
+  // zgłoszenia: każde pole ma klucz (m0, m1, … dla punktów martwych, z dla znajdźki)
+  b = $app.querySelectorAll('input[data-fotoplik]');
+  for (i = 0; i < b.length; i++) b[i].onchange = function(){ var k = this.dataset.fotoplik, f = this.files && this.files[0]; if (!f) return; zmniejsz(f, function(url){ if (!url) return toast('Nie udało się wczytać zdjęcia.', true); S.foty[k] = url; rysuj(); }); };
+  b = $app.querySelectorAll('[data-fotousun]');
+  for (i = 0; i < b.length; i++) b[i].onclick = function(){ delete S.foty[this.dataset.fotousun]; rysuj(); };
+  b = $app.querySelectorAll('[data-zgltekst]');
+  for (i = 0; i < b.length; i++) b[i].oninput = function(){ S.teksty[this.dataset.zgltekst] = this.value; };
+  b = $app.querySelectorAll('form[data-zgl]');
+  for (i = 0; i < b.length; i++) b[i].onsubmit = function(e){
+    e.preventDefault(); var k = this.dataset.zgl, pole = this.querySelector('[data-zgltekst]'), v = pole ? pole.value.trim() : '';
+    if (!v && !S.foty[k]) return toast(k === 'z' ? 'Dodajcie zdjęcie albo opis.' : 'Wpiszcie odpowiedź albo dodajcie zdjęcie.', true);
+    if (pole) pole.setAttribute('data-stale', '1');
+    S.wysylam = k;
+    wykonaj(k === 'z' ? { typ:'zdjecie', rodzaj:'znajdzka', tekst: v, foto: S.foty[k] || '' } : { typ:'zdjecie', rodzaj:'martwy', punkt: Number(k.slice(1)), tekst: v, foto: S.foty[k] || '' });
+  };
+}
+// pole zgłoszenia: tekst + zdjęcie + wyślij, w jednej linii
+function poleZgl(k, placeholder){
+  var f = S.foty[k];
+  return '<form class="zf" data-zgl="' + k + '" novalidate><div class="field"><input type="text" data-zgltekst="' + k + '" value="' + esc(S.teksty[k] || '') + '" placeholder="' + esc(placeholder) + '" autocomplete="off" aria-label="' + esc(placeholder) + '">' +
+    '<label class="btn ghost ico" title="Zdjęcie" aria-label="Dodaj zdjęcie">' + (f ? '✓' : '📷') + '<input type="file" accept="image/*" capture="environment" data-fotoplik="' + k + '" hidden></label><button class="btn">Wyślij</button></div>' +
+    (f ? '<div class="miniat"><img src="' + f + '" alt=""><button type="button" class="btn ghost mini" data-fotousun="' + k + '">Usuń zdjęcie</button></div>' : '') + '</form>';
 }
 function gFlota(w){
   var h = '<div class="stats"><div class="stat"><b>' + w.sila + '</b><span>Siła</span></div><div class="stat"><b>' + w.zasieg + '</b><span>Zasięg</span></div><div class="stat"><b>' + w.zwrot + '</b><span>Zwrotność</span></div></div>' +
-    '<p class="sub">Statków: <b>' + w.ileStatkow + ' z ' + w.limit + '</b>. Koszt naprawy całej floty: <b>' + w.naprawa + '</b>.</p><h2>Statki</h2>' +
-    '<div class="scroll"><table class="cmp"><tr><th>Statek</th><th class="n">Cena</th><th class="n">Siła</th><th class="n">Zasięg</th><th class="n">Zwrot.</th><th class="n">Naprawa</th></tr>' +
-    w.statki.map(function(s){ return '<tr' + (s.ile ? ' class="cur"' : '') + '><td>' + esc(s.nazwa) + (s.ile ? ' <span class="small">×' + s.ile + '</span>' : '') + '</td><td class="n">' + s.cena + '</td><td class="n">' + s.sila + '</td><td class="n">' + s.zasieg + '</td><td class="n">' + s.zwrot + '</td><td class="n">' + s.naprawa + '</td></tr>'; }).join('') +
-    '</table></div><p class="small">Naprawa to koszt naprawy jednego statku po nieudanym ataku. Statystyki floty to suma wszystkich statków i budowli.</p>';
-  w.statki.forEach(function(s){
-    h += '<div class="card"><div class="row"><span class="name">' + esc(s.nazwa) + '</span>' + (s.ile ? '<span class="pill amb">macie: ' + s.ile + '</span>' : '') + '</div>' +
-      '<p class="sub">Siła ' + s.sila + ' · Zasięg ' + s.zasieg + ' · Zwrotność ' + s.zwrot + ' · naprawa kosztuje ' + s.naprawa + '</p><div class="btns">' +
-      '<button class="btn" data-kup="' + esc(s.id) + '" data-nazwa="' + esc(s.nazwa) + '" data-cena="' + s.cena + '"' + (s.powod ? ' disabled' : '') + '>Kup za ' + s.cena + '</button>' +
-      (s.ile && !w.zamkniete ? '<button class="btn ghost" data-sprzedaj="' + esc(s.id) + '" data-nazwa="' + esc(s.nazwa) + '" data-zwrot="' + s.zwrotZaSprzedaz + '">Sprzedaj za ' + s.zwrotZaSprzedaz + '</button>' : '') +
-      (s.powod ? '<span class="why">' + esc(s.powod) + '</span>' : '') + '</div></div>';
-  });
-  h += '<h2>Budowle</h2><p class="sub">Każdą budowlę stawia się tylko raz. Działa od chwili zakupu.</p>';
-  w.budowle.forEach(function(b){
-    h += '<div class="card"><div class="row"><span class="name">' + esc(b.nazwa) + '</span>' + (b.ma ? '<span class="pill ok">postawiona</span>' : '') + '</div><p class="sub">' + esc(b.opis) + '</p>' +
-      (b.ma ? '' : '<div class="btns"><button class="btn" data-kup="' + esc(b.id) + '" data-nazwa="' + esc(b.nazwa) + '" data-cena="' + b.cena + '"' + (b.powod ? ' disabled' : '') + '>Postaw za ' + b.cena + '</button>' + (b.powod ? '<span class="why">' + esc(b.powod) + '</span>' : '') + '</div>') + '</div>';
-  });
+    '<h2>Statki <span class="ile">' + w.ileStatkow + '/' + w.limit + '</span></h2><div class="scroll"><table class="cmp flota"><tr><th>Statek</th><th class="n">Siła</th><th class="n">Zasięg</th><th class="n">Zwrot.</th><th></th></tr>' +
+    w.statki.map(function(s){
+      return '<tr' + (s.ile ? ' class="cur"' : '') + '><td>' + esc(s.nazwa) + (s.ile ? ' <span class="small">×' + s.ile + '</span>' + (w.zamkniete ? '' : '<br><button class="lnk" data-sprzedaj="' + esc(s.id) + '" data-nazwa="' + esc(s.nazwa) + '" data-zwrot="' + s.zwrotZaSprzedaz + '">sprzedaj za ' + s.zwrotZaSprzedaz + '</button>') : '') + '</td>' +
+        '<td class="n">' + s.sila + '</td><td class="n">' + s.zasieg + '</td><td class="n">' + s.zwrot + '</td>' +
+        '<td class="n"><button class="btn mini" data-kup="' + esc(s.id) + '" data-nazwa="' + esc(s.nazwa) + '" data-cena="' + s.cena + '"' + (s.powod ? ' disabled title="' + esc(s.powod) + '"' : '') + '>' + s.cena + '</button></td></tr>';
+    }).join('') + '</table></div>';
+  h += '<h2>Budowle</h2><div class="card lista">' + w.budowle.map(function(b){
+    return '<div class="row"><span><b>' + esc(b.nazwa) + '</b><br><span class="small">' + esc(b.opis) + '</span></span>' +
+      (b.ma ? '<span class="pill ok">✓</span>' : '<button class="btn mini" data-kup="' + esc(b.id) + '" data-nazwa="' + esc(b.nazwa) + '" data-cena="' + b.cena + '"' + (b.powod ? ' disabled title="' + esc(b.powod) + '"' : '') + '>' + b.cena + '</button>') + '</div>';
+  }).join('') + '</div>';
   return h + wylogujLink();
 }
 function gAtak(w){
@@ -314,47 +317,39 @@ function gAtak(w){
   return h;
 }
 function gPunkty(w){
-  var h = '<p class="sub">Każdy zdobyty port daje +' + w.portBonus + ' bursztynów do każdego zaliczonego punktu żywego i martwego.</p>';
-  h += '<h2>Znajdźka</h2><div class="card"><p class="sub">Znalezione: <b>' + (w.znajdzki.wszystkie ? w.znajdzki.zKodu + ' z ' + w.znajdzki.wszystkie : w.znajdzki.znalezione) + '</b>' + (w.znajdzki.zeZdjec ? ', ze zdjęć: <b>' + w.znajdzki.zeZdjec + '</b>' : '') + '.' + (w.znajdzki.wszystkie ? ' Macie kod z kartki? Wpiszcie go tutaj.' : '') + '</p>' +
-    (w.znajdzki.wszystkie ? '<form class="field" id="fZnajdzka"><input type="text" aria-label="Kod znajdźki" autocapitalize="characters" autocomplete="off" spellcheck="false" placeholder="Kod"' + (w.zamkniete ? ' disabled' : '') + '><button class="btn"' + (w.zamkniete ? ' disabled' : '') + '>Wyślij</button></form>' : '');
-  if (w.zdjecia){
-    h += '<h3 style="margin-top:12px">Zgłoszenie ze zdjęciem</h3><p class="sub">Zróbcie zdjęcie znajdźki albo opiszcie, co i gdzie znaleźliście. Kadra sprawdzi i doliczy bursztyn.</p>';
-    if (!w.zamkniete){
-      h += '<div class="foto">' + (S.foto ? '<img src="' + S.foto + '" alt="Wybrane zdjęcie"><button class="btn ghost mini" id="fotoUsun">Usuń zdjęcie</button>' :
-        '<label class="btn ghost" for="fotoPlik">Zrób albo wybierz zdjęcie</label>') + '<input type="file" id="fotoPlik" accept="image/*" capture="environment" hidden></div>' +
-        '<textarea id="zglTekst" rows="2" maxlength="300" placeholder="Opis, np. „tabliczka pod Żurawiem”" aria-label="Opis zgłoszenia">' + esc(S.zglTekst || '') + '</textarea>' +
-        '<div class="btns" style="margin-top:8px"><button class="btn" id="zglWyslij">Wyślij do sprawdzenia</button></div>';
-    }
-    if (w.zgloszenia && w.zgloszenia.length) h += '<div class="zgl">' + w.zgloszenia.map(function(z){
-      var stan = z.stan === 'czeka' ? '<span class="pill amb">czeka</span>' : z.stan === 'ok' ? '<span class="pill ok">+' + z.delta + '</span>' : '<span class="pill bad">odrzucone</span>';
-      return '<div class="row"><span>' + esc(z.czas) + ' · ' + (z.zdjecie ? 'zdjęcie' : '') + (z.zdjecie && z.tekst ? ', ' : '') + esc(z.tekst ? (z.tekst.length > 40 ? z.tekst.slice(0, 40) + '…' : z.tekst) : '') + (z.stan === 'nie' && z.powod ? '<br><span class="small">Powód: ' + esc(z.powod) + '</span>' : '') + '</span>' + stan + '</div>';
-    }).join('') + '</div>';
-  }
-  h += '</div>';
+  var zg = w.zgloszenia || [], h = '';
+  var ostatnie = function(f){ return zg.filter(f)[0]; };     // zgłoszenia są od najnowszego
   h += '<h2>Punkty martwe</h2>';
   w.martwe.forEach(function(p){
-    h += '<div class="card"><div class="row"><span class="name">' + esc(p.nazwa) + '</span>' + (p.zaliczony ? '<span class="pill ok">zaliczony</span>' : p.zostaloProb ? '<span class="pill">' + p.nagroda + ' bursztynów · prób: ' + p.zostaloProb + '</span>' : '<span class="pill bad">brak prób</span>') + '</div>' +
-      (p.pytanie ? '<p>' + esc(p.pytanie) + '</p>' : '');
-    if (!p.zaliczony && p.zostaloProb && !w.zamkniete) h += '<form class="field" data-martwy="' + p.nr + '"><input type="text" aria-label="Odpowiedź: ' + esc(p.nazwa) + '" autocomplete="off" placeholder="Odpowiedź"><button class="btn">Wyślij</button></form>';
-    h += '</div>';
+    var z = ostatnie(function(x){ return x.rodzaj === 'martwy' && x.pkt === p.nr; });
+    var stan = p.zaliczony ? '<span class="pill ok">✓</span>' : p.czeka ? '<span class="pill amb">sprawdzamy</span>' : !p.zostaloProb ? '<span class="pill bad">brak prób</span>' : (p.zostaloProb < w.probyMartwy ? '<span class="pill">próba ' + (w.probyMartwy - p.zostaloProb + 1) + '/' + w.probyMartwy + '</span>' : '');
+    h += '<div class="card' + (p.zaliczony ? ' done' : '') + '"><div class="row"><span class="name">' + esc(p.nazwa) + '</span>' + stan + '</div>' + (p.pytanie && !p.zaliczony ? '<p>' + esc(p.pytanie) + '</p>' : '') +
+      (z && z.stan === 'nie' && !p.zaliczony ? '<p class="why">Odrzucone' + (z.powod ? ': ' + esc(z.powod) : '') + '</p>' : '') +
+      (!p.zaliczony && !p.czeka && p.zostaloProb && !w.zamkniete ? poleZgl('m' + p.nr, 'Odpowiedź') : '') + '</div>';
   });
-  h += '<h2>Punkty żywe</h2><div class="card"><p class="sub">Te punkty ocenia punktowy po wykonaniu zadania. Na ten sam punkt można wracać po kolejne zadanie.</p>' +
-    w.zywe.map(function(p){ return '<div class="row"><span>' + esc(p.nazwa) + '</span>' + (p.wizyty ? '<span class="pill ok">wizyt: ' + p.wizyty + (p.limit ? ' z ' + p.limit : '') + (p.znowuOd ? ', znowu od ' + esc(p.znowuOd) : '') + (p.innyNajpierw && !(p.limit && p.wizyty >= p.limit) ? ', najpierw inny punkt' : '') + '</span>' : '<span class="pill">jeszcze nie byliście</span>') + '</div>'; }).join('') + '</div>';
+  var zn = zg.filter(function(x){ return x.rodzaj !== 'martwy'; });
+  h += '<h2>Znajdźki <span class="ile">' + w.znajdzki.znalezione + (w.znajdzki.wszystkie ? '/' + w.znajdzki.wszystkie : '') + '</span></h2><div class="card">' + (w.zamkniete ? '' : poleZgl('z', 'Co i gdzie?')) +
+    (zn.length ? '<div class="zgl">' + zn.map(function(z){
+      var st = z.stan === 'czeka' ? '<span class="pill amb">sprawdzamy</span>' : z.stan === 'ok' ? '<span class="pill ok">+' + z.delta + '</span>' : '<span class="pill bad">odrzucone</span>';
+      return '<div class="row"><span>' + esc(z.czas) + ' ' + esc(z.tekst ? (z.tekst.length > 36 ? z.tekst.slice(0, 36) + '…' : z.tekst) : 'zdjęcie') + (z.stan === 'nie' && z.powod ? '<br><span class="small">' + esc(z.powod) + '</span>' : '') + '</span>' + st + '</div>';
+    }).join('') + '</div>' : '') + '</div>';
+  h += '<h2>Punkty żywe</h2><div class="card lista">' + w.zywe.map(function(p){
+    var full = p.limit && p.wizyty >= p.limit;
+    return '<div class="row"><span>' + esc(p.nazwa) + '</span>' + (p.wizyty ? '<span class="pill ' + (full ? '' : 'ok') + '">' + p.wizyty + (p.limit ? '/' + p.limit : '') + (p.innyNajpierw && !full ? ' · najpierw inny punkt' : '') + (p.znowuOd ? ' · od ' + esc(p.znowuOd) : '') + '</span>' : '') + '</div>';
+  }).join('') + '</div>';
   return h;
 }
 function gDziennik(w){
-  if (!w.dziennik.length) return '<h2>Dziennik</h2><p class="sub">Tu pojawi się wszystko, co zgłosicie: zakupy, ataki i punkty.</p>';
-  return '<h2>Dziennik</h2><p class="sub">Ostatnie zgłoszenia, najnowsze na górze.</p><div class="log">' + w.dziennik.map(function(e){
+  if (!w.dziennik.length) return '<h2>Dziennik</h2><p class="sub">Pusto.</p>';
+  return '<h2>Dziennik</h2><div class="log">' + w.dziennik.map(function(e){
     return '<div class="e' + (e.ok ? '' : ' no') + '"><span class="t">' + esc(e.czas) + '</span><span><b>' + esc(e.opis) + '</b><br><span class="w">' + esc(e.wynik) + '</span></span></div>'; }).join('') + '</div>';
 }
 function gRanking(w){
-  if (w.rankingUkryty) return '<h2>Ranking</h2><div class="banner">Ranking jest ukryty do końca gry. Wyniki ogłosi kadra na podsumowaniu.</div><p class="small">Zdobyliście dotąd ' + w.zdobyty + ' bursztynów i ' + w.porty + ' portów.</p>';
-  return '<h2>Ranking</h2>' + (w.rankingDo ? '<p class="sub"><b>Ranking będzie widoczny do ' + esc(w.rankingDo) + '.</b> Potem zniknie do końca gry.</p>' : '') + '<p class="sub">Liczy się liczba zdobytych portów. Przy remisie wygrywa gildia, która przez całą grę zdobyła więcej bursztynu.</p><table><tr><th>Miejsce</th><th>Gildia</th><th class="n">Porty</th></tr>' +
-    w.ranking.map(function(r){ return '<tr class="' + (r.ja ? 'me' : '') + '"><td>' + r.miejsce + '.</td><td>' + esc(r.nazwa) + (r.ja ? ' (wy)' : '') + '</td><td class="n">' + r.porty + '</td></tr>'; }).join('') + '</table>' +
-    '<p class="small">Zdobyliście dotąd ' + w.zdobyty + ' bursztynów.</p>';
+  if (w.rankingUkryty) return '<h2>Ranking</h2><div class="banner">Ukryty do końca gry.</div>';
+  return '<h2>Ranking</h2>' + (w.rankingDo ? '<p class="sub">Widoczny do ' + esc(w.rankingDo) + '.</p>' : '') + '<table><tr><th>Miejsce</th><th>Gildia</th><th class="n">Porty</th></tr>' +
+    w.ranking.map(function(r){ return '<tr class="' + (r.ja ? 'me' : '') + '"><td>' + r.miejsce + '.</td><td>' + esc(r.nazwa) + '</td><td class="n">' + r.porty + '</td></tr>'; }).join('') + '</table>';
 }
 
-// ---------- punktowy ----------
 function rysujPunktowego(){
   var w = S.w;
   if (S.punkt === null){ var z = pam('bm_punkt'); if (z !== null && w.punkty[Number(z)]) S.punkt = Number(z); }
@@ -407,7 +402,7 @@ function rysujKadre(){
   if (S.tab === 'korekta') h += kKorekta(w);
   if (S.tab === 'cennik') h += kCennik(w);
   if (S.tab === 'gra') h += kGra(w);
-  h += '</div>' + zakladki([['nadzor', 'Nadzór' + (wazne ? ' (' + wazne + ')' : '')]].concat(w.konfiguracja.ustawienia.zdjecia || czekaZdj ? [['zdjecia', 'Zdjęcia' + (czekaZdj ? ' (' + czekaZdj + ')' : '')]] : []).concat([['ranking', 'Ranking'], ['dziennik', 'Dziennik'], ['korekta', 'Poprawki'], ['cennik', 'Cennik'], ['gra', 'Gra']]));
+  h += '</div>' + zakladki([['nadzor', 'Nadzór' + (wazne ? ' (' + wazne + ')' : '')], ['zdjecia', 'Zgłoszenia' + (czekaZdj ? ' (' + czekaZdj + ')' : '')]].concat([['ranking', 'Ranking'], ['dziennik', 'Dziennik'], ['korekta', 'Poprawki'], ['cennik', 'Cennik'], ['gra', 'Gra']]));
   $app.innerHTML = h; podepnijZakladki(); podepnijWyloguj(); zaladujZdjecia();
   var zd = $app.querySelectorAll('[data-zalicz]');
   for (var y = 0; y < zd.length; y++) zd[y].onclick = function(){ wykonaj({ typ:'zgloszenie', id: this.dataset.zalicz, decyzja:'ok' }); };
@@ -457,7 +452,7 @@ function kNadzor(w, al, ukryte){
     n.zywe.map(function(p){ return '<tr' + (p.czynny ? '' : ' class="done"') + '><td class="nw">' + esc(p.nazwa) + '</td><td class="n">' + p.wizyt + '</td><td class="n">' + p.ost30 + '</td><td class="n">' + (p.srednia == null ? '—' : p.srednia) + '</td><td class="n">' + temu(p.ostatniWpis) + '</td><td class="n">' + temu(p.telefon) + '</td></tr>'; }).join('') + '</table></div>';
   h += '<h3>Punkty martwe</h3><div class="scroll"><table><tr><th>Punkt</th><th class="n">Zaliczyło</th><th class="n">Źle</th><th>Najczęstsza zła</th></tr>' +
     n.martwe.map(function(p){ return '<tr><td class="nw">' + esc(p.nazwa) + '</td><td class="n">' + p.gildieDobre + '</td><td class="n">' + p.gildieZle + '</td><td>' + esc(p.czesta || '—') + '</td></tr>'; }).join('') + '</table></div>' +
-    '<p class="small">Znajdźki znalezione przez gildie: ' + n.znajdzki.map(function(z){ return esc(z.kod) + ' ' + z.ile; }).join(' · ') + '</p>';
+    '<p class="small">Znajdźki: ' + n.znajdzki.map(function(z){ return esc(z.nazwa) + ' ' + z.ile; }).join(' · ') + '</p>';
   return h;
 }
 // Zdjęcia pobiera się osobno (POST z hasłem), żeby hasło kadry nie trafiało do adresów.
@@ -479,21 +474,25 @@ function kZdjecia(w){
   var u = w.konfiguracja.ustawienia, z = w.zgloszenia || [], teraz = Date.now();
   var czeka = z.filter(function(x){ return x.stan === 'czeka'; }).sort(function(a, b){ return a.t - b.t; });
   var po = z.filter(function(x){ return x.stan !== 'czeka'; }).sort(function(a, b){ return b.t - a.t; }).slice(0, 30);
-  var h = '<h2>Zdjęcia do sprawdzenia</h2><p class="sub">Zaliczenie daje ' + u.nagroda_znajdzka + ' bursztynów (z Kantorem ' + (u.nagroda_znajdzka + u.kantor_bonus) + '). Gildia dostaje powiadomienie w ciągu kilku sekund.' + (u.zdjecia ? '' : ' <b>Zgłoszenia są wyłączone w Ustawieniach (zdjecia).</b>') + '</p>';
+  var h = '<h2>Do sprawdzenia</h2>';
   if (!czeka.length) h += '<div class="card"><p><b>Nic nie czeka.</b></p></div>';
   czeka.forEach(function(x){
-    var st = w.stany[x.g] || {}, kantor = st.bud && st.bud.kantor, wczesniej = z.filter(function(y){ return y.g === x.g && y.stan === 'ok'; });
-    var min = Math.round((teraz - x.t) / 60000);
-    h += '<div class="card zdj"><div class="row"><span class="name">' + esc(x.gildia) + '</span><span class="pill ' + (min >= 10 ? 'bad' : min >= 4 ? 'amb' : '') + '">' + esc(x.czas.slice(0, 5)) + ' · ' + (min < 1 ? 'teraz' : min + ' min') + '</span></div>' +
-      (x.zdjecie ? '<img data-zdj="' + esc(x.id) + '" alt="Zdjęcie od gildii">' : '<p class="sub">Bez zdjęcia.</p>') +
+    var st = w.stany[x.g] || {}, bud = st.bud || {}, min = Math.round((teraz - x.t) / 60000), martwy = x.rodzaj === 'martwy', nagroda;
+    if (martwy){ var p = w.konfiguracja.punkty_martwe[x.pkt] || {}; nagroda = (p.nagroda || 0) + (bud.kram ? u.kram_bonus : 0) + (st.p || 0) * u.port_bonus; }
+    else nagroda = u.nagroda_znajdzka + (bud.kantor ? u.kantor_bonus : 0);
+    var wczesniej = martwy ? [] : z.filter(function(y){ return y.g === x.g && y.stan === 'ok' && y.rodzaj !== 'martwy'; });
+    h += '<div class="card zdj"><div class="row"><span class="name">' + esc(x.gildia) + '</span><span class="pill ' + (min >= 10 ? 'bad' : min >= 4 ? 'amb' : '') + '">' + (min < 1 ? 'teraz' : min + ' min') + '</span></div>' +
+      '<p><b>' + (martwy ? esc(x.punkt) : 'Znajdźka') + '</b>' + (martwy && x.pytanie ? '<br><span class="small">' + esc(x.pytanie) + '</span>' : '') + '</p>' +
+      (martwy ? '<p class="small">Poprawna: <b>' + esc(x.odpowiedz) + '</b></p>' : '') +
+      (x.zdjecie ? '<img data-zdj="' + esc(x.id) + '" alt="Zdjęcie od gildii">' : '') +
       (x.tekst ? '<p class="opis">„' + esc(x.tekst) + '”</p>' : '') +
-      '<p class="small">Ta gildia ma już znajdziek ze zdjęć: ' + (st.zf || 0) + (u.zdjecia_limit ? ' z ' + u.zdjecia_limit : '') + (wczesniej.length ? '. Wcześniej zaliczone: ' + wczesniej.slice(-4).map(function(y){ return '„' + esc(y.tekst || 'zdjęcie') + '”'; }).join(', ') : '') + '.</p>' +
-      '<div class="btns"><button class="btn" data-zalicz="' + esc(x.id) + '">Zalicz +' + (u.nagroda_znajdzka + (kantor ? u.kantor_bonus : 0)) + '</button></div>' +
-      '<div class="field" style="margin-top:8px"><input type="text" id="pow-' + esc(x.id) + '" placeholder="Powód odrzucenia (widzi go gildia)" aria-label="Powód odrzucenia"><button class="btn ghost" data-odrzuc="' + esc(x.id) + '">Odrzuć</button></div></div>';
+      (wczesniej.length ? '<p class="small">Już zaliczone: ' + wczesniej.slice(-4).map(function(y){ return '„' + esc(y.tekst || 'zdjęcie') + '”'; }).join(', ') + '</p>' : '') +
+      '<div class="btns"><button class="btn" data-zalicz="' + esc(x.id) + '">Zalicz +' + nagroda + '</button></div>' +
+      '<div class="field" style="margin-top:8px"><input type="text" id="pow-' + esc(x.id) + '" placeholder="Powód (zobaczy gildia)" aria-label="Powód odrzucenia"><button class="btn ghost" data-odrzuc="' + esc(x.id) + '">Odrzuć</button></div></div>';
   });
-  if (po.length) h += '<h3>Sprawdzone</h3><div class="card">' + po.map(function(x){
-    return '<div class="row"><span>' + esc(x.czas.slice(0, 5)) + ' · <b>' + esc(x.gildia) + '</b> · ' + esc(x.tekst || (x.usuniete ? 'zdjęcie usunięte' : 'zdjęcie')) + (x.stan === 'nie' && x.powod ? '<br><span class="small">Powód: ' + esc(x.powod) + '</span>' : '') + '</span>' + (x.stan === 'ok' ? '<span class="pill ok">+' + x.delta + '</span>' : '<span class="pill bad">odrzucone</span>') + '</div>';
-  }).join('') + '</div><p class="small">Pomyłkę przy zaliczeniu cofa się w zakładce Poprawki (korekta bursztynu albo edycja gildii, pole „znajdźki ze zdjęć”).</p>';
+  if (po.length) h += '<h3>Sprawdzone</h3><div class="card lista">' + po.map(function(x){
+    return '<div class="row"><span>' + esc(x.czas.slice(0, 5)) + ' <b>' + esc(x.gildia) + '</b> · ' + (x.rodzaj === 'martwy' ? esc(x.punkt) + ': ' : '') + esc(x.tekst || (x.usuniete ? 'zdjęcie usunięte' : 'zdjęcie')) + (x.stan === 'nie' && x.powod ? '<br><span class="small">' + esc(x.powod) + '</span>' : '') + '</span>' + (x.stan === 'ok' ? '<span class="pill ok">+' + x.delta + '</span>' : '<span class="pill bad">odrzucone</span>') + '</div>';
+  }).join('') + '</div>';
   return h;
 }
 function kRanking(w){
@@ -532,7 +531,7 @@ function kEdycja(w){
     '<h3>Budowle</h3><div class="edg">' + c.budowle.map(function(x){ return chk('data-edb="' + esc(x.id) + '"', !!st.bud[x.id], x.nazwa); }).join('') + '</div>' +
     '<h3>Punkty żywe: liczba wizyt</h3><div class="edg">' + c.punkty_zywe.map(function(x, i){ return num('data-edzy="' + i + '"', st.zy[i] || 0, x.nazwa, 0); }).join('') + '</div>' +
     '<h3>Punkty martwe</h3><div class="edg">' + c.punkty_martwe.map(function(x, i){ return chk('data-edmd="' + i + '"', !!st.md[i], x.nazwa + ' zaliczony') + num('data-edmt="' + i + '"', st.mt[i] || 0, x.nazwa + ': zużyte próby', 0); }).join('') + '</div>' +
-    '<h3>Znajdźki</h3><div class="edg">' + num('id="ed_zf"', st.zf || 0, 'Znajdźki ze zdjęć', 0) + c.znajdzki.map(function(x, i){ return chk('data-edzn="' + i + '"', !!st.zn[i], x); }).join('') + '</div>' +
+    '<h3>Znajdźki</h3><div class="edg">' + num('id="ed_zf"', st.zf || 0, 'Znajdźki zaliczone', 0) + c.znajdzki.map(function(x, i){ return chk('data-edzn="' + i + '"', !!st.zn[i], x); }).join('') + '</div>' +
     '<button class="btn amber">Zapisz zmiany w gildii</button></form>';
   return h;
 }
@@ -547,7 +546,7 @@ function zbierzEdycje(){
   p = $app.querySelectorAll('[data-edzn]'); for (i = 0; i < p.length; i++) n.zn[p[i].dataset.edzn] = p[i].checked;
   return n;
 }
-var CFG_OPISY = { ustawienia:'Ustawienia', gildie:'Gildie i hasła', statki:'Statki', budowle:'Budowle', porty:'Porty (99 oznacza „nie da się”)', punkty_martwe:'Punkty martwe', punkty_zywe:'Punkty żywe', znajdzki:'Kody znajdziek (jeden w wierszu)' };
+var CFG_OPISY = { ustawienia:'Ustawienia', gildie:'Gildie i hasła', statki:'Statki', budowle:'Budowle', porty:'Porty (99 oznacza „nie da się”)', punkty_martwe:'Punkty martwe', punkty_zywe:'Punkty żywe' };
 function kCennik(w){
   if (!S.cfgEdycja) S.cfgEdycja = JSON.parse(JSON.stringify(w.konfiguracja));
   var c = S.cfgEdycja, h = '<h2>Cennik i ustawienia</h2><p class="sub">Zmiany działają od razu po zapisaniu. W trakcie gry zmieniajcie tylko to, co konieczne.</p><div class="cfg">';

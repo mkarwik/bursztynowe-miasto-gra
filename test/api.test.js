@@ -23,10 +23,11 @@ test('serwer: role, akcje, dziennik, trwałość po restarcie', async () => {
   try {
     assert.ok((await api('zle haslo')).zleHaslo);
     let g = await api('gildia1-zmien'); assert.equal(g.widok.rola, 'gildia'); assert.equal(g.widok.bursztyn, 50); assert.equal(g.widok.nazwa, 'Gildia 1');
-    g = await api('gildia1-zmien', { typ: 'kup', co: 'sznika' }); assert.ok(g.komunikat.ok); assert.equal(g.widok.bursztyn, 20); assert.equal(g.widok.zwrot, 4);
-    g = await api('gildia1-zmien', { typ: 'kup', co: 'holk' }); assert.equal(g.komunikat.ok, false); assert.equal(g.widok.bursztyn, 20);
+    g = await api('gildia1-zmien', { typ: 'kup', co: 'sznika' }); assert.ok(g.komunikat.ok); assert.equal(g.widok.bursztyn, 25); assert.equal(g.widok.zwrot, 4);
+    g = await api('gildia1-zmien', { typ: 'kup', co: 'holk' }); assert.equal(g.komunikat.ok, false); assert.equal(g.widok.bursztyn, 25);
     g = await api('gildia1-zmien', { typ: 'zywy', gildia: 0, punkt: 0 }); assert.ok(g.blad, 'gildia nie może zaliczać punktów żywych');
     g = await api('gildia1-zmien', { typ: 'korekta', gildia: 0, ile: 999 }); assert.ok(g.blad, 'gildia nie może robić korekt');
+    g = await api('gildia1-zmien', { typ: 'martwy', punkt: 0, odpowiedz: 'odp1' }); assert.ok(g.blad, 'punkt martwy tylko przez zgłoszenie');
     g = await api('gildia1-zmien', { typ: 'atak', taktyka: 'zaskoczenie' }); assert.ok(g.komunikat.atak); assert.equal(g.komunikat.kosci.length, 2);
     const poAtaku = g.widok.porty;                                    // Zwrotność 4 + rzut >= 7: wygrana przy 3+
     assert.ok(poAtaku === 0 || poAtaku === 1);

@@ -10,7 +10,6 @@
   "kram_bonus": 5,
   "sklad_bonus": 10,
   "kantor_bonus": 15,
-  "stocznia_znizka": 15,
   "natarcie_mnoznik": 1.5,
   "limit_statkow": 6,
   "proby_martwy": 2,
@@ -70,7 +69,7 @@
   {
    "id": "sznika",
    "nazwa": "Sznika",
-   "cena": 30,
+   "cena": 25,
    "sila": 1,
    "zasieg": 0,
    "zwrot": 2,
@@ -79,7 +78,7 @@
   {
    "id": "krajer",
    "nazwa": "Krajer",
-   "cena": 55,
+   "cena": 45,
    "sila": 1,
    "zasieg": 3,
    "zwrot": 1,
@@ -88,7 +87,7 @@
   {
    "id": "koga",
    "nazwa": "Koga",
-   "cena": 190,
+   "cena": 160,
    "sila": 3,
    "zasieg": 8,
    "zwrot": 1,
@@ -97,7 +96,7 @@
   {
    "id": "holk",
    "nazwa": "Holk",
-   "cena": 190,
+   "cena": 160,
    "sila": 13,
    "zasieg": 2,
    "zwrot": 0,
@@ -149,18 +148,6 @@
    "nazwa": "Latarnia",
    "cena": 60,
    "opis": "przy ataku 3 kości, liczą się 2 najlepsze"
-  },
-  {
-   "id": "stocznia",
-   "nazwa": "Stocznia",
-   "cena": 40,
-   "opis": "każdy następny statek tańszy o 15 bursztynów"
-  },
-  {
-   "id": "dok",
-   "nazwa": "Dok",
-   "cena": 30,
-   "opis": "koszt naprawy o połowę niższy"
   }
  ],
  "porty": [
@@ -339,16 +326,5 @@
    "nazwa": "Mincerz"
   }
  ],
- "znajdzki": [
-  "BURSZTYN1",
-  "BURSZTYN2",
-  "BURSZTYN3",
-  "BURSZTYN4",
-  "BURSZTYN5",
-  "BURSZTYN6",
-  "BURSZTYN7",
-  "BURSZTYN8",
-  "BURSZTYN9",
-  "BURSZTYN10"
- ]
+ "znajdzki": []
 }
