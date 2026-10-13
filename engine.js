@@ -338,7 +338,7 @@ function widokGildii(cfg, stany, i, min) {
     tabelaPortow: cfg.porty.map((p, k) => ({ nr: k + 1, nazwa: p.nazwa, broni: p.broni, obrona: TAKTYKI.map(t => p[t.id] >= NIE_DA_SIE ? null : p[t.id]), lup: p.lup, zdobyty: k < st.p, nastepny: k === st.p })),
     martwe: cfg.punkty_martwe.map((p, k) => ({ nr: k, nazwa: p.nazwa, pytanie: p.pytanie || '', nagroda: p.nagroda, zaliczony: !!st.md[k], zostaloProb: Math.max(0, u.proby_martwy - (st.mt[k] || 0)) })),
     zywe: cfg.punkty_zywe.map((p, k) => { const od = kiedyZnowu(cfg, st, k); return { nazwa: p.nazwa, wizyty: st.zy[k] || 0, limit: u.zywy_wizyty, znowuOd: od != null && min < od ? hhmm(od) : null, innyNajpierw: musiInny(cfg, st, k) }; }),
-    znajdzki: { znalezione: Object.keys(st.zn).length + (st.zf || 0), wszystkie: u.zdjecia_limit || 0 },
+    znajdzki: { znalezione: Object.keys(st.zn).length + (st.zf || 0), wszystkie: cfg.znajdzki.length },
     zdjecia: !!u.zdjecia, zdjeciaLimit: u.zdjecia_limit || 0, probyMartwy: u.proby_martwy,
     ranking: ukryty ? [] : rank.map(x => ({ miejsce: x.miejsce, nazwa: x.nazwa, porty: x.porty, ja: x.i === i })),
     godziny: u.pilnuj_godzin ? { ostatnie: u.ostatnie_10_min, koniec: u.koniec_gry } : null,

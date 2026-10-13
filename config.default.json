@@ -20,7 +20,7 @@
   "zywy_przerwa_min": 0,
   "zywy_inny_punkt": true,
   "ukryj_ranking_min": 30,
-  "zdjecia": true,
+  "zdjecia": false,
   "zdjecia_limit": 10
  },
  "gildie": [
@@ -326,5 +326,16 @@
    "nazwa": "Mincerz"
   }
  ],
- "znajdzki": []
+ "znajdzki": [
+  "BURSZTYN1",
+  "BURSZTYN2",
+  "BURSZTYN3",
+  "BURSZTYN4",
+  "BURSZTYN5",
+  "BURSZTYN6",
+  "BURSZTYN7",
+  "BURSZTYN8",
+  "BURSZTYN9",
+  "BURSZTYN10"
+ ]
 }

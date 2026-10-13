@@ -51,6 +51,7 @@ function analiza(cfg, stany, dziennik, ob, min, ms) {
   if (odpDomyslne) kontrola.push(odpDomyslne + ' punktów martwych ma odpowiedź „odpN”, czyli nieuzupełnioną.');
   const bezPytania = cfg.punkty_martwe.filter(p => !String(p.pytanie || '').trim()).length;
   if (bezPytania) kontrola.push(bezPytania + ' punktów martwych nie ma pytania.');
+  if (cfg.znajdzki.some(k => /^BURSZTYN\d+$/i.test(k))) kontrola.push('Kody znajdziek są przykładowe (BURSZTYN1…). Zmieńcie je, bo łatwo je zgadnąć.');
   if (!u.pilnuj_godzin) kontrola.push('Pilnowanie godzin jest wyłączone. Przed grą ustawcie „pilnuj_godzin” na „tak”.');
   if (kontrola.length && (f === 'przed' || f === 'trwa' && m < 15)) dodaj('kontrola', f === 'przed' ? 'uwaga' : 'zle', 'Przygotowanie przed grą', kontrola.map(t => '• ' + t).join('\n'));
   if (f === 'przed') {
@@ -130,8 +131,14 @@ function analiza(cfg, stany, dziennik, ob, min, ms) {
   }
 
   // ---------- znajdźki ----------
-  // znajdźki: ile każda gildia ma zaliczonych ze zgłoszeń
-  const znalezione = cfg.gildie.map((g, i) => ({ nazwa: g.nazwa, ile: ((stany[i] || {}).zf || 0) }));
+  const zlyKod = {};
+  dziennik.filter(d => d.typ === 'znajdzka' && !d.ok && d.kod && /takim kodem/.test(d.wynik)).forEach(d => { const c = String(d.kod).trim().toUpperCase(); (zlyKod[c] = zlyKod[c] || new Set()).add(d.g); });
+  Object.entries(zlyKod).filter(([, s]) => s.size >= 2).forEach(([c, s]) => dodaj('z-' + c, 'uwaga', 'Znajdźki', s.size + ' gildie wpisały kod „' + c + '”, którego nie ma na liście. Literówka na kartce albo w Cenniku?'));
+  const znalezione = cfg.znajdzki.map((kod, k) => ({ nazwa: kod, ile: stany.filter(st => st.zn && st.zn[k]).length }));
+  if (graTrwa && m >= 70) {
+    const nikt = znalezione.filter(z => z.ile === 0).map(z => z.nazwa);
+    if (nikt.length && nikt.length < cfg.znajdzki.length) dodaj('z-nikt', 'info', 'Znajdźki', 'Nikt jeszcze nie znalazł: ' + nikt.join(', ') + '. Może zniknęły albo są za dobrze schowane.');
+  }
 
   // ---------- zgłoszenia ze zdjęciem ----------
   const czeka = (ob.zgloszenia || []).filter(z => z.stan === 'czeka');

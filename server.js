@@ -132,6 +132,7 @@ function noweZgloszenie(g, a) {
   if (f === 'przed') return { ok: false, tekst: 'Gra jeszcze się nie zaczęła.' };
   if (f === 'koniec') return { ok: false, tekst: 'Gra już się skończyła.' };
   const rodzaj = a.rodzaj === 'martwy' ? 'martwy' : 'znajdzka';
+  if (rodzaj === 'znajdzka' && !u.zdjecia) return { ok: false, tekst: 'Znajdźki zalicza się kodem z kartki.' };
   const tekst = String(a.tekst || '').trim().slice(0, 300);
   const foto = typeof a.foto === 'string' ? a.foto : '';
   if (!tekst && !foto) return { ok: false, tekst: rodzaj === 'martwy' ? 'Wpiszcie odpowiedź albo dodajcie zdjęcie.' : 'Dodajcie zdjęcie albo opis.' };
@@ -257,7 +258,7 @@ function api(body) {
   if (a && typeof a === 'object') {
     if (r.rola === 'gildia') {
       if (a.typ === 'zdjecie') komunikat = noweZgloszenie(r.i, a);
-      else if (!['kup', 'sprzedaj', 'atak'].includes(a.typ)) return { blad: 'Gildia nie może tego zgłosić.' };
+      else if (!['kup', 'sprzedaj', 'atak', 'znajdzka'].includes(a.typ)) return { blad: 'Gildia nie może tego zgłosić.' };
       else komunikat = wykonaj(r.i, 'gildia', a);
     } else if (r.rola === 'punktowy') {
       if (a.typ !== 'zywy') return { blad: 'Punktowy może tylko zaliczać punkty żywe.' };

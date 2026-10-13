@@ -34,7 +34,10 @@ test('silnik: znajdźka ze zdjęcia, Kantor, limit, działa po końcu gry', () =
 test('serwer: zgłoszenie ze zdjęciem od wysyłki do decyzji', async () => {
   await start();
   try {
-    let g = await api('gildia1-zmien', { typ: 'zdjecie', tekst: '', foto: '' }); assert.equal(g.komunikat.ok, false, 'puste zgłoszenie');
+    let g = await api('gildia1-zmien', { typ: 'zdjecie', tekst: 'znajdźka', foto: PNG }); assert.equal(g.komunikat.ok, false, 'domyślnie znajdźki tylko kodem');
+    g = await api('gildia1-zmien', { typ: 'znajdzka', kod: 'bursztyn2' }); assert.ok(g.komunikat.ok, 'kod działa');
+    const c0 = (await api('k')).widok.konfiguracja; c0.ustawienia.zdjecia = true; await api('k', { typ: 'zapisz_konfiguracje', konfiguracja: c0 });
+    g = await api('gildia1-zmien', { typ: 'zdjecie', tekst: '', foto: '' }); assert.equal(g.komunikat.ok, false, 'puste zgłoszenie');
     g = await api('gildia1-zmien', { typ: 'zdjecie', tekst: 'Tabliczka pod Żurawiem', foto: PNG }); assert.ok(g.komunikat.ok);
     g = await api('gildia1-zmien', { typ: 'zdjecie', tekst: 'Sam opis bez zdjęcia' }); assert.ok(g.komunikat.ok);
     g = await api('gildia1-zmien', { typ: 'zdjecie', foto: 'data:text/html;base64,PHNjcmlwdD4=' }); assert.equal(g.komunikat.ok, false, 'tylko obrazy');
@@ -71,7 +74,7 @@ test('serwer: zgłoszenie ze zdjęciem od wysyłki do decyzji', async () => {
     k = await api('k', { typ: 'zgloszenie', id: zFoto.id, decyzja: 'ok' }); assert.equal(k.komunikat.ok, false, 'drugi raz nie');
     k = await api('k', { typ: 'zgloszenie', id: zTekst.id, decyzja: 'nie', powod: 'Nie widać tabliczki' }); assert.ok(k.komunikat.ok);
     g = await api('gildia1-zmien');
-    assert.equal(g.widok.znajdzki.znalezione, 1);
+    assert.equal(g.widok.znajdzki.znalezione, 2);
     const ok = g.widok.zgloszenia.find(z => z.id === zFoto.id), nie = g.widok.zgloszenia.find(z => z.id === zTekst.id);
     assert.equal(ok.stan, 'ok'); assert.equal(ok.delta, 15); assert.equal(nie.stan, 'nie'); assert.equal(nie.powod, 'Nie widać tabliczki');
     assert.ok(g.widok.dziennik.some(d => /Znajdźka ze zdjęcia zaliczona/.test(d.wynik)));

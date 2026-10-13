@@ -64,7 +64,7 @@ th{ font-size:.7rem; text-transform:uppercase; letter-spacing:.05em; color:var(-
 td.n,th.n{ text-align:right; font-variant-numeric:tabular-nums; white-space:nowrap }
 tr.me td{ background:var(--amber-tint); font-weight:700 } tr.done td{ color:var(--mute) } tr.cur td{ background:var(--tint); font-weight:700 }
 .scroll{ overflow-x:auto }
-label.btn{ display:inline-flex; align-items:center; justify-content:center } .btn.ico{ min-width:48px; padding:0 10px; font-size:1.2rem } .ile{ font-family:var(--body); font-size:.95rem; color:var(--mute); font-weight:500 } .lnk{ border:0; background:none; padding:2px 0; color:var(--sea); text-decoration:underline; font-size:.85rem; cursor:pointer } .lista .row{ padding:7px 0; border-bottom:1px solid var(--line); gap:10px } .lista .row:last-child{ border-bottom:0 } .card.done{ opacity:.6 } .miniat{ display:flex; gap:10px; align-items:center; margin-top:8px } .miniat img{ height:64px; border:1px solid var(--line) } table.flota td{ vertical-align:middle } table.flota .btn.mini{ min-width:58px } .zdj img{ display:block; width:100%; max-height:420px; object-fit:contain; background:var(--tint); margin:8px 0 } .zdj .opis{ font-size:1.05rem; margin:6px 0 } .foto{ margin:8px 0; display:flex; flex-direction:column; gap:8px; align-items:flex-start } .foto img{ max-width:100%; max-height:260px; border:1px solid var(--line) } textarea{ width:100%; padding:10px; border:1px solid var(--line); background:#fff } .zgl{ margin-top:10px; border-top:1px solid var(--line); padding-top:6px } .zgl .row{ padding:5px 0; align-items:flex-start }
+label.btn{ display:inline-flex; align-items:center; justify-content:center } .btn.ico{ min-width:48px; padding:0 10px; font-size:1.2rem } .ile{ font-family:var(--body); font-size:.95rem; color:var(--mute); font-weight:500 } .lnk{ border:0; background:none; padding:2px 0; color:var(--sea); text-decoration:underline; font-size:.85rem; cursor:pointer } .lista .row{ padding:7px 0; border-bottom:1px solid var(--line); gap:10px; flex-wrap:nowrap } .lista .row > span:first-child{ flex:1; min-width:0 } .lista .row > .btn, .lista .row > .pill{ flex:none } .lista .row:last-child{ border-bottom:0 } .card.done{ opacity:.6 } .miniat{ display:flex; gap:10px; align-items:center; margin-top:8px } .miniat img{ height:64px; border:1px solid var(--line) } table.flota td{ vertical-align:middle } table.flota .btn.mini{ min-width:58px } .zdj img{ display:block; width:100%; max-height:420px; object-fit:contain; background:var(--tint); margin:8px 0 } .zdj .opis{ font-size:1.05rem; margin:6px 0 } .foto{ margin:8px 0; display:flex; flex-direction:column; gap:8px; align-items:flex-start } .foto img{ max-width:100%; max-height:260px; border:1px solid var(--line) } textarea{ width:100%; padding:10px; border:1px solid var(--line); background:#fff } .zgl{ margin-top:10px; border-top:1px solid var(--line); padding-top:6px } .zgl .row{ padding:5px 0; align-items:flex-start }
 .alert{ border-left:5px solid var(--line) } .alert.zle{ border-left-color:var(--bad); background:var(--bad-tint) } .alert.uwaga{ border-left-color:var(--amber) } .alert p{ margin-top:4px; white-space:pre-line } .btn.mini{ min-height:32px; padding:4px 12px; font-size:.85rem } .ai{ white-space:pre-wrap; margin-top:6px; line-height:1.45 }
 table.cmp{ margin-bottom:6px } table.atk td{ vertical-align:middle } .btns.col{ flex-direction:column; align-items:stretch } .zasady ul{ margin:8px 0 0 18px; padding:0 } .zasady li{ margin:4px 0; font-size:.92rem } .zasady summary{ cursor:pointer } table.cmp td:first-child{ white-space:nowrap } table.cmp th,table.cmp td{ padding:7px 5px } table.cmp .n{ text-align:right; width:52px; font-variant-numeric:tabular-nums }
 table.porty th,table.porty td{ padding:7px 5px } table.porty td.n,table.porty th.n{ width:46px }
@@ -239,6 +239,8 @@ function rysujGildie(){
   b = $app.querySelectorAll('[data-atak]');
   for (i = 0; i < b.length; i++) b[i].onclick = function(){ var d = this.dataset; potwierdz('Atak: ' + d.nazwa + '?', esc(d.opis), 'Atakujemy', { typ:'atak', taktyka: d.atak }); };
   var zs = $app.querySelector('.zasady'); if (zs) zs.ontoggle = function(){ pam('bm_zasady', this.open ? '1' : '0'); };
+  var fz = document.getElementById('fZnajdzka');
+  if (fz) fz.onsubmit = function(e){ e.preventDefault(); var v = this.querySelector('input').value.trim(); if (!v) return toast('Wpiszcie kod.', true); this.querySelector('input').setAttribute('data-stale', '1'); wykonaj({ typ:'znajdzka', kod: v }); };
   // zgłoszenia: każde pole ma klucz (m0, m1, … dla punktów martwych, z dla znajdźki)
   b = $app.querySelectorAll('input[data-fotoplik]');
   for (i = 0; i < b.length; i++) b[i].onchange = function(){ var k = this.dataset.fotoplik, f = this.files && this.files[0]; if (!f) return; zmniejsz(f, function(url){ if (!url) return toast('Nie udało się wczytać zdjęcia.', true); S.foty[k] = url; rysuj(); }); };
@@ -328,7 +330,9 @@ function gPunkty(w){
       (!p.zaliczony && !p.czeka && p.zostaloProb && !w.zamkniete ? poleZgl('m' + p.nr, 'Odpowiedź') : '') + '</div>';
   });
   var zn = zg.filter(function(x){ return x.rodzaj !== 'martwy'; });
-  h += '<h2>Znajdźki <span class="ile">' + w.znajdzki.znalezione + (w.znajdzki.wszystkie ? '/' + w.znajdzki.wszystkie : '') + '</span></h2><div class="card">' + (w.zamkniete ? '' : poleZgl('z', 'Co i gdzie?')) +
+  h += '<h2>Znajdźki <span class="ile">' + w.znajdzki.znalezione + '/' + w.znajdzki.wszystkie + '</span></h2><div class="card">' +
+    (w.zamkniete ? '' : '<form class="field" id="fZnajdzka"><input type="text" aria-label="Kod znajdźki" autocapitalize="characters" autocomplete="off" spellcheck="false" placeholder="Kod z kartki"><button class="btn">Wyślij</button></form>') +
+    (w.zdjecia && !w.zamkniete ? '<div style="margin-top:8px">' + poleZgl('z', 'Albo opis i zdjęcie') + '</div>' : '') +
     (zn.length ? '<div class="zgl">' + zn.map(function(z){
       var st = z.stan === 'czeka' ? '<span class="pill amb">sprawdzamy</span>' : z.stan === 'ok' ? '<span class="pill ok">+' + z.delta + '</span>' : '<span class="pill bad">odrzucone</span>';
       return '<div class="row"><span>' + esc(z.czas) + ' ' + esc(z.tekst ? (z.tekst.length > 36 ? z.tekst.slice(0, 36) + '…' : z.tekst) : 'zdjęcie') + (z.stan === 'nie' && z.powod ? '<br><span class="small">' + esc(z.powod) + '</span>' : '') + '</span>' + st + '</div>';
@@ -546,7 +550,7 @@ function zbierzEdycje(){
   p = $app.querySelectorAll('[data-edzn]'); for (i = 0; i < p.length; i++) n.zn[p[i].dataset.edzn] = p[i].checked;
   return n;
 }
-var CFG_OPISY = { ustawienia:'Ustawienia', gildie:'Gildie i hasła', statki:'Statki', budowle:'Budowle', porty:'Porty (99 oznacza „nie da się”)', punkty_martwe:'Punkty martwe', punkty_zywe:'Punkty żywe' };
+var CFG_OPISY = { ustawienia:'Ustawienia', gildie:'Gildie i hasła', statki:'Statki', budowle:'Budowle', porty:'Porty (99 oznacza „nie da się”)', punkty_martwe:'Punkty martwe', punkty_zywe:'Punkty żywe', znajdzki:'Kody znajdziek (jeden w wierszu)' };
 function kCennik(w){
   if (!S.cfgEdycja) S.cfgEdycja = JSON.parse(JSON.stringify(w.konfiguracja));
   var c = S.cfgEdycja, h = '<h2>Cennik i ustawienia</h2><p class="sub">Zmiany działają od razu po zapisaniu. W trakcie gry zmieniajcie tylko to, co konieczne.</p><div class="cfg">';
