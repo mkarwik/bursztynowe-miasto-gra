@@ -16,6 +16,14 @@ Bez zewnętrznych bibliotek. Wymaga tylko Node 20 lub nowszego. Dane leżą w pl
 
 Opcjonalne zmienne: `PORT` (domyślnie 3000), `DATA_DIR` (domyślnie /data w kontenerze), `STREFA` (domyślnie Europe/Warsaw).
 
+### Nadzór i analiza AI
+
+Zakładka **Nadzór** w widoku kadry działa bez żadnych ustawień. Reguły sprawdzają na bieżąco: gildie bez kontaktu, gildie w tyle albo podejrzanie szybkie, długi dług, serie porażek, punkty martwe z dużą liczbą złych odpowiedzi (z najczęstszą złą odpowiedzią), błędne kody znajdziek, punkty żywe bez wpisów lub bez telefonu punktowego, różnice w ocenianiu i tempo całej gry w porównaniu z symulacją. Przed grą pokazuje listę rzeczy do uzupełnienia.
+
+Podsumowanie AI jest opcjonalne. W Coolify dodaj zmienną **ANTHROPIC_API_KEY** z kluczem z console.anthropic.com. Wtedy w Nadzorze pojawia się „Ocena AI”: na przycisk i automatycznie co `AI_CO_MIN` minut w trakcie gry (domyślnie 15, 0 wyłącza; działa przy `pilnuj_godzin` na „tak”). Model ustawia `ANTHROPIC_MODEL` (domyślnie `claude-sonnet-5-5`). Do AI trafia stan gry i ostatnie wpisy dziennika, bez haseł.
+
+Informacje, kto był w aplikacji, serwer trzyma tylko w pamięci, więc po restarcie liczą się od nowa.
+
 ## Pierwsze uruchomienie
 
 1. Wejdź na stronę i zaloguj się hasłem kadry.

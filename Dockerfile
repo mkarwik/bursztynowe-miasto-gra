@@ -1,6 +1,6 @@
 FROM node:22-alpine
 WORKDIR /app
-COPY package.json server.js engine.js config.default.json ./
+COPY package.json server.js engine.js nadzor.js config.default.json ./
 COPY public ./public
 ENV NODE_ENV=production PORT=3000 DATA_DIR=/data
 VOLUME /data

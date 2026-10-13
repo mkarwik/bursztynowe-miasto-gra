@@ -63,7 +63,8 @@ th{ font-size:.7rem; text-transform:uppercase; letter-spacing:.05em; color:var(-
 td.n,th.n{ text-align:right; font-variant-numeric:tabular-nums; white-space:nowrap }
 tr.me td{ background:var(--amber-tint); font-weight:700 } tr.done td{ color:var(--mute) } tr.cur td{ background:var(--tint); font-weight:700 }
 .scroll{ overflow-x:auto }
-table.cmp{ margin-bottom:6px } table.cmp td:first-child{ white-space:nowrap } table.cmp th,table.cmp td{ padding:7px 5px } table.cmp .n{ text-align:right; width:52px; font-variant-numeric:tabular-nums }
+.alert{ border-left:5px solid var(--line) } .alert.zle{ border-left-color:var(--bad); background:var(--bad-tint) } .alert.uwaga{ border-left-color:var(--amber) } .alert p{ margin-top:4px; white-space:pre-line } .btn.mini{ min-height:32px; padding:4px 12px; font-size:.85rem } .ai{ white-space:pre-wrap; margin-top:6px }
+table.cmp{ margin-bottom:6px } table.atk td{ vertical-align:middle } .btns.col{ flex-direction:column; align-items:stretch } .zasady ul{ margin:8px 0 0 18px; padding:0 } .zasady li{ margin:4px 0; font-size:.92rem } .zasady summary{ cursor:pointer } table.cmp td:first-child{ white-space:nowrap } table.cmp th,table.cmp td{ padding:7px 5px } table.cmp .n{ text-align:right; width:52px; font-variant-numeric:tabular-nums }
 table.porty th,table.porty td{ padding:7px 5px } table.porty td.n,table.porty th.n{ width:46px }
 td.nw{ white-space:nowrap }
 .log{ display:flex; flex-direction:column }
@@ -100,8 +101,10 @@ var $app = document.getElementById('app'), $war = document.getElementById('warst
 function esc(s){ return String(s == null ? '' : s).replace(/[&<>"']/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
 function pam(k, v){ try{ if (v === undefined) return localStorage.getItem(k); if (v === null) localStorage.removeItem(k); else localStorage.setItem(k, v); }catch(e){} return null; }
 
+function urzadzenie(){ var u = pam('bm_urz'); if (!u){ u = Math.random().toString(36).slice(2) + Date.now().toString(36); pam('bm_urz', u); } return u; }
 function api(akcja){
-  return fetch('/api', { method:'POST', headers:{'content-type':'application/json'}, body: JSON.stringify({ haslo: S.haslo, akcja: akcja || null }) })
+  var punkt = S.w && S.w.rola === 'punktowy' ? S.punkt : null;
+  return fetch('/api', { method:'POST', headers:{'content-type':'application/json'}, body: JSON.stringify({ haslo: S.haslo, akcja: akcja || null, urz: urzadzenie(), punkt: punkt }) })
     .then(function(r){ return r.json(); });
 }
 function odswiez(cicho){
@@ -208,6 +211,7 @@ function rysujGildie(){
   for (i = 0; i < b.length; i++) b[i].onclick = function(){ var d = this.dataset; potwierdz('Sprzedać: ' + d.nazwa + '?', 'Dostaniecie <b>' + esc(d.zwrot) + '</b> bursztynów, czyli połowę ceny.', 'Sprzedaję', { typ:'sprzedaj', co: d.sprzedaj }); };
   b = $app.querySelectorAll('[data-atak]');
   for (i = 0; i < b.length; i++) b[i].onclick = function(){ var d = this.dataset; potwierdz('Atak: ' + d.nazwa + '?', esc(d.opis), 'Atakujemy', { typ:'atak', taktyka: d.atak }); };
+  var zs = $app.querySelector('.zasady'); if (zs) zs.ontoggle = function(){ pam('bm_zasady', this.open ? '1' : '0'); };
   b = $app.querySelectorAll('[data-martwy]');
   for (i = 0; i < b.length; i++) b[i].onsubmit = function(e){ e.preventDefault(); var v = this.querySelector('input').value.trim(); if (!v) return toast('Wpiszcie odpowiedź.', true); this.querySelector('input').setAttribute('data-stale', '1'); wykonaj({ typ:'martwy', punkt: Number(this.dataset.martwy), odpowiedz: v }); };
   var fz = document.getElementById('fZnajdzka');
@@ -240,18 +244,31 @@ function gAtak(w){
     var n = w.nastepny;
     h += '<div class="card next"><p class="sub">Następny port, numer ' + n.nr + ' z ' + w.ilePortow + '</p><h2>' + esc(n.nazwa) + '</h2><p>Broni go: <b>' + esc(n.broni) + '</b>. ' + (n.lup ? 'Łup: <b>' + n.lup + '</b>.' : 'To ostatni port, bez łupu.') + '</p>' +
       (n.nieudane ? '<p class="why">Wasze nieudane ataki na ten port: ' + n.nieudane + '. Obrona jest wyższa o ' + n.nieudane + '.</p>' : '') + '</div>';
+    var krotko = { natarcie:'Natarcie', ostrzal:'Ostrzał', zaskoczenie:'Zaskocz.' };
+    h += '<div class="scroll"><table class="cmp atk"><tr><th>Taktyka</th><th class="n">Wy</th><th class="n">Obrona</th><th class="n">Szansa</th><th class="n">Łup</th><th class="n">Porażka</th></tr>' +
+      w.taktyki.map(function(t){
+        var nie = t.obrona == null;
+        return '<tr' + (nie ? ' class="done"' : '') + '><td>' + esc(krotko[t.id] || t.nazwa) + '<br><span class="small">' + esc(t.statNazwa) + '</span></td><td class="n"><b>' + t.stat + '</b></td><td class="n">' + (nie ? '—' : t.obrona) + '</td>' +
+          '<td class="n">' + (nie ? '—' : '<span class="pill ' + (t.szansa >= 70 ? 'ok' : t.szansa >= 30 ? 'amb' : 'bad') + '">' + t.szansa + '%</span>') + '</td>' +
+          '<td class="n">' + (nie || !n.lup ? '—' : Math.round(n.lup * t.lupRazy)) + '</td><td class="n">' + (nie ? '—' : (t.kosztPorazki ? '−' + t.kosztPorazki : '0')) + '</td></tr>';
+      }).join('') + '</table></div>' +
+      '<p class="small">„Wy” to statystyka całej floty z budowlami. „Porażka” to koszt naprawy, gdy atak się nie uda. Na kościach wypada od 2 do 12.</p><div class="btns col">';
     w.taktyki.forEach(function(t){
-      var mozna = !t.powod, opis;
-      h += '<div class="card"><div class="row"><span class="name">' + esc(t.nazwa) + '</span>' + (t.obrona == null ? '<span class="pill bad">nie da się</span>' : '<span class="pill ' + (t.szansa >= 70 ? 'ok' : t.szansa >= 30 ? 'amb' : 'bad') + '">szansa ' + t.szansa + '%</span>') + '</div>';
-      if (t.obrona != null){
-        h += '<p>Wasza ' + esc(t.statNazwa) + ': <b>' + t.stat + '</b>. Obrona portu: <b>' + t.obrona + '</b>. ' + (t.brakuje <= 2 ? 'Wystarczy dowolny rzut.' : 'Na kościach potrzeba co najmniej <b>' + t.brakuje + '</b>.') + '</p>' +
-          '<p class="sub">Udany atak: ' + (t.lupRazy > 1 ? 'łup o połowę większy' : 'zwykły łup') + '. Nieudany: ' + (t.kosztPorazki ? 'płacicie ' + t.kosztPorazki : 'nic nie płacicie') + ', obrona portu rośnie o 1.</p>';
-        opis = t.statNazwa + ' ' + t.stat + ' przeciw obronie ' + t.obrona + '. Szansa ' + t.szansa + '%. Jeśli się nie uda' + (t.kosztPorazki ? ', zapłacicie ' + t.kosztPorazki + ' bursztynów' : ', nic nie zapłacicie') + ', a obrona portu wzrośnie o 1.';
-        h += '<div class="btns"><button class="btn amber" data-atak="' + t.id + '" data-nazwa="' + esc(n.nazwa + ', ' + t.nazwa) + '" data-opis="' + esc(opis) + '"' + (mozna ? '' : ' disabled') + '>Atakuj: ' + esc(t.nazwa) + '</button>' + (t.powod ? '<span class="why">' + esc(t.powod) + '</span>' : '') + '</div>';
-      } else h += '<p class="sub">Tą taktyką tego portu zdobyć się nie da.</p>';
-      h += '</div>';
+      if (t.obrona == null) return;
+      var opis = t.statNazwa + ' ' + t.stat + ' przeciw obronie ' + t.obrona + '. Szansa ' + t.szansa + '%. Jeśli się nie uda' + (t.kosztPorazki ? ', zapłacicie ' + t.kosztPorazki + ' bursztynów' : ', nic nie zapłacicie') + ', a obrona portu wzrośnie o 1.';
+      h += '<button class="btn amber" data-atak="' + t.id + '" data-nazwa="' + esc(n.nazwa + ', ' + t.nazwa) + '" data-opis="' + esc(opis) + '"' + (t.powod ? ' disabled' : '') + '>' + esc(t.nazwa) + ' · ' + t.szansa + '%</button>';
     });
+    var powod = (w.taktyki.filter(function(t){ return t.obrona != null && t.powod; })[0] || {}).powod;
+    h += '</div>' + (powod ? '<p class="why">' + esc(powod) + '</p>' : '');
   }
+  h += '<details class="card zasady"' + (pam('bm_zasady') === '0' ? '' : ' open') + '><summary><b>Zasady ataku w skrócie</b></summary><ul>' +
+    '<li>Wybieracie taktykę. Aplikacja rzuca dwiema kośćmi (z Latarnią trzema, liczą się dwie najlepsze) i dodaje wynik do waszej statystyki.</li>' +
+    '<li>Suma równa obronie albo wyższa: port zdobyty, dostajecie łup i płyniecie do następnego.</li>' +
+    '<li><b>Natarcie</b> (Siła): łup o połowę większy, porażka kosztuje pełną naprawę floty.</li>' +
+    '<li><b>Ostrzał z daleka</b> (Zasięg): porażka kosztuje pół naprawy.</li>' +
+    '<li><b>Z zaskoczenia</b> (Zwrotność): porażka nic nie kosztuje.</li>' +
+    '<li>Każda porażka podnosi obronę tego portu o 1, tylko dla was.</li>' +
+    '<li>Ze skarbcem na minusie nie da się atakować. W ostatnich 10 minutach gry wolno zaatakować tylko raz.</li></ul></details>';
   h += '<h2>Wszystkie porty</h2><div class="scroll"><table class="porty"><tr><th>Nr</th><th>Port</th><th class="n">Nat.</th><th class="n">Ostrz.</th><th class="n">Zask.</th><th class="n">Łup</th></tr>';
   w.tabelaPortow.forEach(function(p){
     h += '<tr class="' + (p.zdobyty ? 'done' : p.nastepny ? 'cur' : '') + '"><td>' + p.nr + '</td><td>' + esc(p.nazwa) + (p.zdobyty ? ' ✓' : '') + '<br><span class="small">' + esc(p.broni) + '</span></td>' +
@@ -322,16 +339,21 @@ function rysujPunktowego(){
 
 // ---------- kadra ----------
 function rysujKadre(){
-  var w = S.w; if (!S.tab) S.tab = 'ranking';
+  var w = S.w; if (!S.tab) S.tab = 'nadzor';
+  var nz = w.nadzor || { alerty: [] }, ack = potwierdzone(), widoczne = nz.alerty.filter(function(a){ return !ack[a.id]; });
+  var pilne = widoczne.filter(function(a){ return a.poziom === 'zle'; }), wazne = widoczne.filter(function(a){ return a.poziom !== 'info'; }).length;
+  pilne.forEach(function(a){ if (!S.znane) S.znane = {}; if (!S.znane[a.id]){ S.znane[a.id] = 1; try{ navigator.vibrate && navigator.vibrate([150, 80, 150]); }catch(e){} } });
   var fazy = { przed:'przed startem', trwa:'gra trwa', ostatnie:'ostatnie 10 min', koniec:'po grze' };
   var h = pasek('Kadra', [[w.teraz.slice(0, 5), fazy[w.faza] || ''], [w.ileZdarzen, 'zdarzeń']]) + '<div class="wrap">';
   if (w.hasloKadryDomyslne) h += '<div class="banner bad">Działa domyślne hasło kadry. Ustawcie zmienną HASLO_KADRY na serwerze przed grą.</div>';
+  if (S.tab !== 'nadzor' && pilne.length) h += '<div class="banner bad">Pilne sprawy: ' + pilne.length + '. Zobaczcie zakładkę Nadzór.</div>';
+  if (S.tab === 'nadzor') h += kNadzor(w, widoczne, nz.alerty.length - widoczne.length);
   if (S.tab === 'ranking') h += kRanking(w);
   if (S.tab === 'dziennik') h += kDziennik(w);
   if (S.tab === 'korekta') h += kKorekta(w);
   if (S.tab === 'cennik') h += kCennik(w);
   if (S.tab === 'gra') h += kGra(w);
-  h += '</div>' + zakladki([['ranking', 'Ranking'], ['dziennik', 'Dziennik'], ['korekta', 'Poprawki'], ['cennik', 'Cennik'], ['gra', 'Gra']]);
+  h += '</div>' + zakladki([['nadzor', 'Nadzór' + (wazne ? ' (' + wazne + ')' : '')], ['ranking', 'Ranking'], ['dziennik', 'Dziennik'], ['korekta', 'Poprawki'], ['cennik', 'Cennik'], ['gra', 'Gra']]);
   $app.innerHTML = h; podepnijZakladki(); podepnijWyloguj();
   var f = document.getElementById('filtr'); if (f) f.onchange = function(){ S.filtr = this.value; rysuj(); };
   var fk = document.getElementById('fKor');
@@ -348,8 +370,35 @@ function rysujKadre(){
   var zc = document.getElementById('zapiszCfg'); if (zc) zc.onclick = zapiszCennik;
   var bd = $app.querySelectorAll('[data-dodaj],[data-usun]');
   for (var q = 0; q < bd.length; q++) bd[q].onclick = function(){ if (this.dataset.dodaj) zmienWiersze(this.dataset.dodaj, true); else zmienWiersze(this.dataset.usun, false); };
+  var bw = $app.querySelectorAll('[data-wiem]');
+  for (var x = 0; x < bw.length; x++) bw[x].onclick = function(){ var a = potwierdzone(); a[this.dataset.wiem] = Date.now() + 30 * 60000; pam('bm_ack', JSON.stringify(a)); rysuj(); };
+  var pu = document.getElementById('pokazUkryte'); if (pu) pu.onclick = function(e){ e.preventDefault(); pam('bm_ack', null); rysuj(); };
+  var ba = document.getElementById('aiBtn'); if (ba) ba.onclick = function(){ wykonaj({ typ:'ai' }); setTimeout(function(){ odswiez(true); }, 15000); setTimeout(function(){ odswiez(true); }, 35000); };
   var fr = document.getElementById('fReset');
   if (fr) fr.onsubmit = function(e){ e.preventDefault(); var v = document.getElementById('resetTxt').value.trim(); document.getElementById('resetTxt').setAttribute('data-stale', '1'); wykonaj({ typ:'reset', potwierdzenie: v }); };
+}
+function potwierdzone(){ var a = {}; try{ a = JSON.parse(pam('bm_ack') || '{}') || {}; }catch(e){} var n = Date.now(), o = {}; for (var k in a) if (a[k] > n) o[k] = a[k]; return o; }
+function temu(x){ return x == null ? '—' : x < 1 ? 'teraz' : x + ' min'; }
+function kNadzor(w, al, ukryte){
+  var n = w.nadzor, ai = w.ai || {}, fazy = { przed:'przed startem', trwa:'gra trwa', ostatnie:'ostatnie 10 minut', koniec:'po grze' };
+  var h = '<h2>Nadzór</h2><p class="sub">' + esc(fazy[n.faza] || '') + (n.faza === 'trwa' || n.faza === 'ostatnie' ? ', minuta gry ' + n.minutaGry : '') + '. Telefony w ostatnich 10 min: kadra ' + n.urzadzenia.kadra + ', punktowi ' + n.urzadzenia.punktowi + ', gildie ' + n.urzadzenia.gildie + '.</p>';
+  if (ai.jest) h += '<div class="card"><div class="row"><span class="name">Ocena AI</span>' + (ai.czas ? '<span class="pill">' + esc(ai.czas) + '</span>' : '') + '</div>' +
+    (ai.tekst ? '<p class="ai">' + esc(ai.tekst) + '</p>' : '<p class="sub">Jeszcze nie było analizy.' + (ai.co > 0 ? ' W trakcie gry robi się sama co ' + ai.co + ' min.' : '') + '</p>') +
+    (ai.blad ? '<p class="why">' + esc(ai.blad) + '</p>' : '') +
+    '<div class="btns" style="margin-top:8px"><button class="btn ghost" id="aiBtn"' + (ai.trwa ? ' disabled' : '') + '>' + (ai.trwa ? 'AI analizuje…' : 'Przeanalizuj teraz') + '</button></div></div>';
+  if (!al.length) h += '<div class="card"><p><b>Nic niepokojącego.</b></p></div>';
+  al.forEach(function(a){ h += '<div class="card alert ' + a.poziom + '"><div class="row"><span class="name">' + esc(a.kto) + '</span><button class="btn ghost mini" data-wiem="' + esc(a.id) + '">Wiem</button></div><p>' + esc(a.tekst) + '</p></div>'; });
+  if (ukryte) h += '<p class="small">Ukryte (Wiem): ' + ukryte + '. Wracają po 30 min. <a href="#" id="pokazUkryte">Pokaż wszystkie</a></p>';
+  if (n.tempo) h += '<p class="sub">Tempo: mediana zdobytego bursztynu <b>' + n.tempo.mediana + '</b>, w symulacji ok. ' + n.tempo.oczekiwana + ' (zakres ' + n.tempo.zakres[0] + '–' + n.tempo.zakres[1] + '). Mediana portów: ' + n.tempo.portyMediana + '.</p>';
+  h += '<h3>Gildie</h3><div class="scroll"><table><tr><th>Gildia</th><th class="n">Porty</th><th class="n">Zdobyty</th><th class="n">Skarbiec</th><th class="n">Aplikacja</th><th class="n">Punkt</th></tr>' +
+    n.gildie.map(function(g){ return '<tr><td class="nw">' + esc(g.nazwa) + '</td><td class="n">' + g.porty + '</td><td class="n">' + g.zdobyty + '</td><td class="n">' + g.bursztyn + '</td><td class="n">' + temu(g.widziana) + '</td><td class="n">' + temu(g.ostatniPunkt) + '</td></tr>'; }).join('') + '</table></div>' +
+    '<p class="small">„Aplikacja” i „Punkt”: ile minut temu gildia miała otwartą aplikację i zaliczyła ostatni punkt.</p>';
+  h += '<h3>Punkty żywe</h3><div class="scroll"><table><tr><th>Punkt</th><th>Godziny</th><th class="n">Wizyt</th><th class="n">30 min</th><th class="n">Śr.</th><th class="n">Wpis</th><th class="n">Telefon</th></tr>' +
+    n.zywe.map(function(p){ return '<tr' + (p.otwarty === false ? ' class="done"' : '') + '><td class="nw">' + esc(p.nazwa) + '</td><td class="nw">' + esc(p.godziny || '—') + '</td><td class="n">' + p.wizyt + '</td><td class="n">' + p.ost30 + '</td><td class="n">' + (p.srednia == null ? '—' : p.srednia) + '</td><td class="n">' + temu(p.ostatniWpis) + '</td><td class="n">' + temu(p.telefon) + '</td></tr>'; }).join('') + '</table></div>';
+  h += '<h3>Punkty martwe</h3><div class="scroll"><table><tr><th>Punkt</th><th class="n">Zaliczyło</th><th class="n">Źle</th><th>Najczęstsza zła</th></tr>' +
+    n.martwe.map(function(p){ return '<tr><td class="nw">' + esc(p.nazwa) + '</td><td class="n">' + p.gildieDobre + '</td><td class="n">' + p.gildieZle + '</td><td>' + esc(p.czesta || '—') + '</td></tr>'; }).join('') + '</table></div>' +
+    '<p class="small">Znajdźki znalezione przez gildie: ' + n.znajdzki.map(function(z){ return esc(z.kod) + ' ' + z.ile; }).join(' · ') + '</p>';
+  return h;
 }
 function kRanking(w){
   var h = '<h2>Ranking</h2><div class="scroll"><table><tr><th>Miejsce</th><th>Gildia</th><th class="n">Porty</th><th class="n">Zdobyty</th><th class="n">Skarbiec</th><th class="n">Siła</th><th class="n">Zasięg</th><th class="n">Zwrot.</th></tr>';

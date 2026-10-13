@@ -4,11 +4,15 @@ const http = require('http');
 const fs = require('fs');
 const path = require('path');
 const E = require('./engine');
+const N = require('./nadzor');
 
 const PORT = Number(process.env.PORT || 3000);
 const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, 'data');
 const HASLO_KADRY = String(process.env.HASLO_KADRY || 'kadra-zmien-mnie').trim();
 const STREFA = process.env.STREFA || 'Europe/Warsaw';
+const AI_KLUCZ = String(process.env.ANTHROPIC_API_KEY || '').trim();
+const AI_MODEL = process.env.ANTHROPIC_MODEL || 'claude-sonnet-5-5';
+const AI_CO_MIN = Number(process.env.AI_CO_MIN ?? 15);
 const PLIK_KONFIG = path.join(DATA_DIR, 'config.json');
 const PLIK_STAN = path.join(DATA_DIR, 'state.json');
 const PLIK_DZIENNIK = path.join(DATA_DIR, 'dziennik.jsonl');
@@ -50,9 +54,19 @@ function teraz() {
 }
 const kosc = () => 1 + Math.floor(Math.random() * 6);
 
-function wpis(g, kto, opis, wynik) {
+function wpis(g, kto, opis, wynik, a) {
   const t = teraz();
   const w = { t: Date.now(), czas: t.czas, g, kto, opis, wynik: wynik.msg, ok: wynik.ok, delta: wynik.delta || 0, b: g == null ? null : stany[g].b };
+  // pola do nadzoru: co to było i z jakim skutkiem
+  if (a && a.typ) {
+    w.typ = a.typ;
+    if (a.punkt != null) w.pkt = Number(a.punkt);
+    if (a.typ === 'martwy') w.odp = String(a.odpowiedz || '').slice(0, 60);
+    if (a.typ === 'znajdzka') w.kod = String(a.kod || '').slice(0, 40);
+    if (a.typ === 'zywy' && wynik.ok) w.ile = Number(a.ile);
+    if (wynik.bledna) w.bledna = true;
+    if (a.typ === 'atak' && wynik.ok) w.wygrana = !!wynik.wygrana;
+  }
   dziennik.push(w);
   fs.appendFileSync(PLIK_DZIENNIK, JSON.stringify(w) + '\n');
   return w;
@@ -86,7 +100,7 @@ function wykonaj(g, kto, a) {
   if (w.ok) { stany[g] = w.st; zapiszStan(); }
   let opis = opisAkcji(a);
   if (a.typ === 'atak' && portPrzed) opis = 'Atak: ' + portPrzed.nazwa + ', ' + (E.TAKTYKI.find(x => x.id === a.taktyka) || { nazwa: '?' }).nazwa;
-  wpis(g, kto, opis, w);
+  wpis(g, kto, opis, w, a);
   return { ok: w.ok && !w.bledna, tekst: w.msg, kosci: w.kosci || null, wygrana: w.wygrana, atak: a.typ === 'atak' && !!w.kosci };
 }
 
@@ -95,6 +109,23 @@ function dziennikGildii(g, ile) {
   for (let k = dziennik.length - 1; k >= 0 && o.length < ile; k--) if (dziennik[k].g === g) o.push({ czas: dziennik[k].czas.slice(0, 5), opis: dziennik[k].opis, wynik: dziennik[k].wynik, ok: dziennik[k].ok });
   return o;
 }
+
+// Kto i kiedy ostatnio był w aplikacji. Tylko w pamięci: po restarcie serwera liczy się od nowa.
+const ob = { gildie: {}, punkty: {}, urz: {}, start: Date.now(), eksport: null };
+function obecnosc(r, body) {
+  const n = Date.now();
+  const id = String(body.urz || '').slice(0, 40);
+  if (r.rola === 'gildia') ob.gildie[r.i] = n;
+  let punkt = null;
+  if (r.rola === 'punktowy') {
+    punkt = body.akcja && body.akcja.typ === 'zywy' ? Number(body.akcja.punkt) : (body.punkt == null ? null : Number(body.punkt));
+    if (Number.isInteger(punkt) && cfg.punkty_zywe[punkt]) ob.punkty[punkt] = n; else punkt = null;
+  }
+  if (id) ob.urz[id] = { rola: r.rola, t: n, g: r.i, punkt };
+  for (const k in ob.urz) if (n - ob.urz[k].t > 6 * 3600000) delete ob.urz[k];
+}
+let ai = { tekst: '', czas: '', blad: '', trwa: false, ostatnio: 0 };
+function nadzor() { const t = teraz(); return N.analiza(cfg, stany, dziennik, ob, t.min, Date.now()); }
 
 function widok(r) {
   const t = teraz();
@@ -122,12 +153,14 @@ function widok(r) {
         martwe: Object.keys(st.md).length, zywe: Object.values(st.zy).reduce((a, b) => a + b, 0), znajdzki: Object.keys(st.zn).length, nieudane: st.fail };
     }),
     dziennik: dziennik.slice(-300).reverse().map(d => ({ czas: d.czas, gildia: d.g == null ? '' : (cfg.gildie[d.g] || { nazwa: '?' }).nazwa, g: d.g, kto: d.kto, opis: d.opis, wynik: d.wynik, ok: d.ok, delta: d.delta, b: d.b })),
-    ileZdarzen: dziennik.length, stany, konfiguracja: cfg, hasloKadryDomyslne: HASLO_KADRY === 'kadra-zmien-mnie' };
+    ileZdarzen: dziennik.length, stany, konfiguracja: cfg, hasloKadryDomyslne: HASLO_KADRY === 'kadra-zmien-mnie',
+    nadzor: nadzor(), ai: { jest: !!AI_KLUCZ, tekst: ai.tekst, czas: ai.czas, blad: ai.blad, trwa: ai.trwa, co: AI_CO_MIN } };
 }
 
 function api(body) {
   const r = rola(body.haslo);
   if (!r) return { blad: 'Złe hasło.', zleHaslo: true };
+  obecnosc(r, body);
   const a = body.akcja;
   let komunikat = null;
   if (a && typeof a === 'object') {
@@ -148,7 +181,7 @@ function api(body) {
         const g = Number(a.gildia);
         if (!stany[g]) return { blad: 'Nie ma takiej gildii.' };
         const w = E.edytujStan(cfg, stany[g], a.stan);
-        if (w.ok) { stany[g] = w.st; zapiszStan(); wpis(g, 'kadra', 'Edycja kadry', w); }
+        if (w.ok) { stany[g] = w.st; zapiszStan(); wpis(g, 'kadra', 'Edycja kadry', w, { typ: 'edytuj' }); }
         komunikat = { ok: w.ok, tekst: w.msg };
       } else if (a.typ === 'zapisz_konfiguracje') {
         const bledy = E.sprawdzKonfiguracje(a.konfiguracja);
@@ -172,11 +205,57 @@ function api(body) {
           zapiszStan(); fs.writeFileSync(PLIK_DZIENNIK, '');
           komunikat = { ok: true, tekst: 'Gra wyzerowana. Poprzedni stan zapisany w kopii na serwerze.' };
         }
+      } else if (a.typ === 'ai') {
+        if (!AI_KLUCZ) komunikat = { ok: false, tekst: 'Brak klucza AI. Dodajcie zmienną ANTHROPIC_API_KEY w Coolify.' };
+        else if (ai.trwa) komunikat = { ok: true, tekst: 'Analiza już trwa.' };
+        else { analizaAI(); komunikat = { ok: true, tekst: 'Analiza ruszyła. Wynik pojawi się tu za kilkanaście sekund.' }; }
       } else return { blad: 'Nieznane polecenie kadry.' };
     }
   }
   return { widok: widok(r), komunikat };
 }
+
+// ---------- analiza AI (opcjonalna, gdy jest ANTHROPIC_API_KEY) ----------
+const AI_SYSTEM = 'Jesteś asystentem kadry harcerskiej gry miejskiej „Bursztynowe Miasto” (10 gildii po 4 osoby, Gdańsk, ok. 2,5 h). ' +
+  'Gildie zarabiają bursztyn na punktach żywych (ocena punktowego 0–55), martwych (pytanie, 2 próby) i znajdźkach, kupują statki i budowle, atakują po kolei 10 portów. ' +
+  'Dostajesz migawkę stanu gry: wyniki reguł nadzoru, tabelę gildii, punkty i ostatnie wpisy dziennika. ' +
+  'Napisz po polsku 3–7 krótkich punktów dla kadry: najpierw to, co wymaga działania teraz (kto, co zrobić), potem obserwacje. ' +
+  'Konkretnie, z nazwami gildii i punktów. Nie powtarzaj wszystkich alertów, wybierz ważne i dodaj to, czego reguły nie widzą (wzorce, przyczyny). ' +
+  'Jeśli wszystko idzie dobrze, powiedz to jednym zdaniem. Bez wstępów i bez formatowania poza myślnikami.';
+function migawka() {
+  const n = nadzor();
+  return JSON.stringify({ teraz: n.teraz, faza: n.faza, minutaGry: n.minutaGry, koniec: n.koniec, tempo: n.tempo, urzadzenia: n.urzadzenia,
+    alerty: n.alerty.map(a => a.poziom + ' | ' + a.kto + ' | ' + a.tekst),
+    gildie: n.gildie.map(g => ({ nazwa: g.nazwa, porty: g.porty, zdobyty: g.zdobyty, skarbiec: g.bursztyn, nieudaneZRzedu: g.nieudane, minOdOtwarciaAplikacji: g.widziana, minOdPunktu: g.ostatniPunkt, minOdZakupu: g.ostatniZakup, minOdAtaku: g.ostatniAtak, zakupy: g.zakupy, korekty: g.korekty })),
+    punktyZywe: n.zywe.map(p => ({ nazwa: p.nazwa, godziny: p.godziny, otwarty: p.otwarty, wizyt: p.wizyt, wizyt30min: p.ost30, srednia: p.srednia, minOdWpisu: p.ostatniWpis })),
+    punktyMartwe: n.martwe.map(p => ({ nazwa: p.nazwa, zaliczyli: p.zaliczyli, gildieZle: p.gildieZle, najczestszaZla: p.czesta })),
+    znajdzki: n.znajdzki.map(z => z.ile),
+    dziennik: dziennik.slice(-40).map(d => [d.czas.slice(0, 5), d.g == null ? '-' : (cfg.gildie[d.g] || {}).nazwa, d.kto, d.opis, d.ok ? d.wynik : 'ODRZUCONE: ' + d.wynik].join(' | ')) });
+}
+async function analizaAI() {
+  ai.trwa = true; ai.blad = ''; ai.ostatnio = Date.now();
+  try {
+    const ctl = new AbortController(); const tm = setTimeout(() => ctl.abort(), 60000);
+    const r = await fetch('https://api.anthropic.com/v1/messages', { method: 'POST', signal: ctl.signal,
+      headers: { 'content-type': 'application/json', 'x-api-key': AI_KLUCZ, 'anthropic-version': '2023-06-01' },
+      body: JSON.stringify({ model: AI_MODEL, max_tokens: 900, system: AI_SYSTEM, messages: [{ role: 'user', content: 'Migawka gry:\n' + migawka() }] }) });
+    clearTimeout(tm);
+    const o = await r.json();
+    if (!r.ok) throw new Error((o.error && o.error.message) || ('HTTP ' + r.status));
+    ai.tekst = (o.content || []).filter(c => c.type === 'text').map(c => c.text).join('\n').trim();
+    ai.czas = teraz().czas.slice(0, 5);
+  } catch (e) {
+    ai.blad = 'Analiza AI nie wyszła: ' + String(e.message || e).slice(0, 200);
+    console.error(ai.blad);
+  }
+  ai.trwa = false;
+}
+// automatyczna analiza co AI_CO_MIN minut w trakcie gry
+setInterval(() => {
+  if (!AI_KLUCZ || !(AI_CO_MIN > 0) || ai.trwa) return;
+  const f = E.faza(cfg, teraz().min);
+  if ((f === 'trwa' || f === 'ostatnie') && cfg.ustawienia.pilnuj_godzin && Date.now() - ai.ostatnio >= AI_CO_MIN * 60000) analizaAI();
+}, 60000).unref();
 
 // Proste hamowanie zgadywania haseł: 12 złych prób z jednego adresu w 5 minut blokuje go na minutę.
 const proby = new Map();
@@ -205,6 +284,7 @@ const serwer = http.createServer((req, res) => {
   if (req.method === 'GET' && (url.pathname === '/eksport.json' || url.pathname === '/eksport.csv')) {
     const r = rola(url.searchParams.get('haslo'));
     if (!r || r.rola !== 'kadra') { zlaProba(ip); return json(403, { blad: 'Tylko dla kadry.' }); }
+    ob.eksport = Date.now();
     if (url.pathname === '/eksport.json') {
       res.writeHead(200, { 'content-type': 'application/json; charset=utf-8', 'content-disposition': 'attachment; filename="bursztynowe-miasto-stan.json"' });
       return res.end(JSON.stringify({ kiedy: new Date().toISOString(), konfiguracja: cfg, stany, ranking: E.ranking(cfg, stany), dziennik }, null, 1));
