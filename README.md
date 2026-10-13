@@ -16,6 +16,12 @@ Bez zewnętrznych bibliotek. Wymaga tylko Node 20 lub nowszego. Dane leżą w pl
 
 Opcjonalne zmienne: `PORT` (domyślnie 3000), `DATA_DIR` (domyślnie /data w kontenerze), `STREFA` (domyślnie Europe/Warsaw).
 
+### Znajdźki ze zdjęciem
+
+Gildia może potwierdzić znajdźkę zdjęciem, opisem albo jednym i drugim (zakładka Punkty). Telefon zmniejsza zdjęcie do ok. 1280 px przed wysłaniem. Kadra sprawdza zgłoszenia w zakładce **Zdjęcia**: „Zalicz” dolicza nagrodę za znajdźkę (z Kantorem większą), „Odrzuć” wysyła gildii powód. Gildia dostaje powiadomienie w ciągu kilku sekund. Kody z kartek działają dalej obok.
+
+Ustawienia: `zdjecia` (włącza zgłoszenia), `zdjecia_limit` (ile znajdziek ze zdjęć może mieć jedna gildia, 0 bez limitu). Jedna gildia może mieć naraz najwyżej 3 zgłoszenia czekające. Zdjęcia leżą w `/data/zdjecia`, kadra usuwa je jednym przyciskiem w zakładce Gra. Nadzór ostrzega, gdy zgłoszenie czeka dłużej niż 4 minuty.
+
 ### Nadzór i analiza AI
 
 Zakładka **Nadzór** w widoku kadry działa bez żadnych ustawień. Reguły sprawdzają na bieżąco: gildie bez kontaktu, gildie w tyle albo podejrzanie szybkie, długi dług, serie porażek, punkty martwe z dużą liczbą złych odpowiedzi (z najczęstszą złą odpowiedzią), błędne kody znajdziek, punkty żywe bez wpisów lub bez telefonu punktowego, różnice w ocenianiu i tempo całej gry w porównaniu z symulacją. Przed grą pokazuje listę rzeczy do uzupełnienia.
@@ -55,7 +61,7 @@ Wielkość liter i polskie znaki w odpowiedziach oraz kodach nie mają znaczenia
 
 ## Pliki danych
 
-W katalogu danych: `config.json` (cennik i hasła, powstaje po pierwszym zapisie w Cenniku), `state.json` (stan gildii), `dziennik.jsonl` (wszystkie zdarzenia, jedno w wierszu). Wyzerowanie gry zapisuje poprzedni stan w podkatalogu `kopia-...`.
+W katalogu danych: `config.json` (cennik i hasła, powstaje po pierwszym zapisie w Cenniku), `state.json` (stan gildii), `dziennik.jsonl` (wszystkie zdarzenia, jedno w wierszu), `zgloszenia.json` i katalog `zdjecia/` (znajdźki ze zdjęciem). Wyzerowanie gry zapisuje poprzedni stan w podkatalogu `kopia-...`.
 
 ## Uruchomienie lokalne i testy
 

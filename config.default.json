@@ -19,7 +19,9 @@
   "zywy_max": 55,
   "zywy_wizyty": 2,
   "zywy_przerwa_min": 30,
-  "ukryj_ranking_min": 30
+  "ukryj_ranking_min": 30,
+  "zdjecia": true,
+  "zdjecia_limit": 10
  },
  "gildie": [
   {

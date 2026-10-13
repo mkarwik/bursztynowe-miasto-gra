@@ -16,10 +16,13 @@ const AI_CO_MIN = Number(process.env.AI_CO_MIN ?? 15);
 const PLIK_KONFIG = path.join(DATA_DIR, 'config.json');
 const PLIK_STAN = path.join(DATA_DIR, 'state.json');
 const PLIK_DZIENNIK = path.join(DATA_DIR, 'dziennik.jsonl');
+const PLIK_ZGL = path.join(DATA_DIR, 'zgloszenia.json');
+const KAT_ZDJ = path.join(DATA_DIR, 'zdjecia');
 const DOMYSLNA = JSON.parse(fs.readFileSync(path.join(__dirname, 'config.default.json'), 'utf8'));
 const STRONA = fs.readFileSync(path.join(__dirname, 'public', 'index.html'));
 
 fs.mkdirSync(DATA_DIR, { recursive: true });
+fs.mkdirSync(KAT_ZDJ, { recursive: true });
 
 function zapiszAtomowo(plik, tekst) {
   const tmp = plik + '.tmp';
@@ -31,6 +34,11 @@ function wczytajJson(plik, zapas) {
 }
 
 let cfg = wczytajJson(PLIK_KONFIG, null) || JSON.parse(JSON.stringify(DOMYSLNA));
+// nowe ustawienia z nowszej wersji aplikacji dopisują się do starego, zapisanego cennika
+for (const k in DOMYSLNA.ustawienia) if (!(k in cfg.ustawienia)) cfg.ustawienia[k] = DOMYSLNA.ustawienia[k];
+// zgłoszenia znajdziek ze zdjęciem: { id, g, t, czas, tekst, zdjecie: bool, stan: 'czeka'|'ok'|'nie', powod, delta, decyzja: czas }
+let zgloszenia = wczytajJson(PLIK_ZGL, []);
+function zapiszZgl() { zapiszAtomowo(PLIK_ZGL, JSON.stringify(zgloszenia)); }
 let stany = (wczytajJson(PLIK_STAN, null) || {}).stany || [];
 let dziennik = [];
 try {
@@ -110,6 +118,56 @@ function dziennikGildii(g, ile) {
   return o;
 }
 
+// ---------- znajdźki ze zdjęciem ----------
+const MAX_ZDJ = 1500000;          // bajtów po zdekodowaniu; telefon i tak zmniejsza zdjęcie do ok. 200 KB
+function noweZgloszenie(g, a) {
+  const u = cfg.ustawienia, f = E.faza(cfg, teraz().min);
+  if (!u.zdjecia) return { ok: false, tekst: 'Zgłoszenia ze zdjęciem są wyłączone.' };
+  if (f === 'przed') return { ok: false, tekst: 'Gra jeszcze się nie zaczęła.' };
+  if (f === 'koniec') return { ok: false, tekst: 'Gra już się skończyła.' };
+  const tekst = String(a.tekst || '').trim().slice(0, 300);
+  const foto = typeof a.foto === 'string' ? a.foto : '';
+  if (!tekst && !foto) return { ok: false, tekst: 'Dodajcie zdjęcie albo opis.' };
+  if (zgloszenia.filter(z => z.g === g && z.stan === 'czeka').length >= 3) return { ok: false, tekst: 'Macie już 3 zgłoszenia czekające na sprawdzenie. Poczekajcie na decyzję kadry.' };
+  const zal = (stany[g].zf || 0) + zgloszenia.filter(z => z.g === g && z.stan === 'czeka').length;
+  if (u.zdjecia_limit > 0 && zal >= u.zdjecia_limit) return { ok: false, tekst: 'Limit znajdziek ze zdjęć to ' + u.zdjecia_limit + '.' };
+  const id = Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+  let zdjecie = false;
+  if (foto) {
+    const m = /^data:image\/(jpeg|png|webp);base64,([A-Za-z0-9+/=]+)$/.exec(foto);
+    if (!m) return { ok: false, tekst: 'Nie udało się odczytać zdjęcia. Spróbujcie jeszcze raz.' };
+    const bufor = Buffer.from(m[2], 'base64');
+    if (bufor.length > MAX_ZDJ) return { ok: false, tekst: 'Zdjęcie jest za duże.' };
+    fs.writeFileSync(path.join(KAT_ZDJ, id + '.' + (m[1] === 'jpeg' ? 'jpg' : m[1])), bufor);
+    zdjecie = m[1];
+  }
+  const t = teraz();
+  zgloszenia.push({ id, g, t: Date.now(), czas: t.czas, tekst, zdjecie, stan: 'czeka' });
+  zapiszZgl();
+  wpis(g, 'gildia', 'Zgłoszenie znajdźki' + (zdjecie ? ' ze zdjęciem' : ''), { ok: true, msg: 'Czeka na sprawdzenie przez kadrę.', delta: 0 }, { typ: 'zdjecie' });
+  return { ok: true, tekst: 'Wysłane. Kadra sprawdzi zgłoszenie i dostaniecie powiadomienie.' };
+}
+function decyzja(a) {
+  const z = zgloszenia.find(x => x.id === a.id);
+  if (!z) return { ok: false, tekst: 'Nie ma takiego zgłoszenia.' };
+  if (z.stan !== 'czeka') return { ok: false, tekst: 'To zgłoszenie jest już sprawdzone (' + (z.stan === 'ok' ? 'zaliczone' : 'odrzucone') + ').' };
+  const kiedy = teraz().czas.slice(0, 5);
+  if (a.decyzja === 'ok') {
+    const w = wykonaj(z.g, 'kadra', { typ: 'znajdzka_foto' });
+    if (!w.ok) return { ok: false, tekst: w.tekst };
+    z.stan = 'ok'; z.delta = dziennik[dziennik.length - 1].delta; z.decyzja = kiedy;
+    zapiszZgl();
+    return { ok: true, tekst: (cfg.gildie[z.g] || {}).nazwa + ': zaliczone, +' + z.delta + '.' };
+  }
+  if (a.decyzja === 'nie') {
+    z.stan = 'nie'; z.powod = String(a.powod || '').trim().slice(0, 200); z.decyzja = kiedy;
+    zapiszZgl();
+    wpis(z.g, 'kadra', 'Zgłoszenie znajdźki odrzucone', { ok: true, msg: 'Odrzucone' + (z.powod ? ': ' + z.powod : '') + '.', delta: 0 }, { typ: 'zdjecie_nie' });
+    return { ok: true, tekst: (cfg.gildie[z.g] || {}).nazwa + ': odrzucone.' };
+  }
+  return { ok: false, tekst: 'Wybierzcie: zalicz albo odrzuć.' };
+}
+
 // Kto i kiedy ostatnio był w aplikacji. Tylko w pamięci: po restarcie serwera liczy się od nowa.
 const ob = { gildie: {}, punkty: {}, urz: {}, start: Date.now(), eksport: null };
 function obecnosc(r, body) {
@@ -125,13 +183,15 @@ function obecnosc(r, body) {
   for (const k in ob.urz) if (n - ob.urz[k].t > 6 * 3600000) delete ob.urz[k];
 }
 let ai = { tekst: '', czas: '', blad: '', trwa: false, ostatnio: 0 };
-function nadzor() { const t = teraz(); return N.analiza(cfg, stany, dziennik, ob, t.min, Date.now()); }
+function nadzor() { const t = teraz(); ob.zgloszenia = zgloszenia; return N.analiza(cfg, stany, dziennik, ob, t.min, Date.now()); }
+const zglDlaGildii = g => zgloszenia.filter(z => z.g === g).slice(-20).reverse().map(z => ({ id: z.id, czas: z.czas.slice(0, 5), tekst: z.tekst, zdjecie: z.zdjecie, stan: z.stan, powod: z.powod || '', delta: z.delta || 0 }));
+const zglDlaKadry = () => zgloszenia.slice(-200).map(z => Object.assign({}, z, { gildia: (cfg.gildie[z.g] || { nazwa: '?' }).nazwa }));
 
 function widok(r) {
   const t = teraz();
   if (r.rola === 'gildia') {
     const w = E.widokGildii(cfg, stany, r.i, t.min);
-    w.dziennik = dziennikGildii(r.i, 15); w.teraz = t.czas.slice(0, 5);
+    w.dziennik = dziennikGildii(r.i, 15); w.teraz = t.czas.slice(0, 5); w.zgloszenia = zglDlaGildii(r.i);
     return w;
   }
   if (r.rola === 'punktowy') {
@@ -154,7 +214,7 @@ function widok(r) {
     }),
     dziennik: dziennik.slice(-300).reverse().map(d => ({ czas: d.czas, gildia: d.g == null ? '' : (cfg.gildie[d.g] || { nazwa: '?' }).nazwa, g: d.g, kto: d.kto, opis: d.opis, wynik: d.wynik, ok: d.ok, delta: d.delta, b: d.b })),
     ileZdarzen: dziennik.length, stany, konfiguracja: cfg, hasloKadryDomyslne: HASLO_KADRY === 'kadra-zmien-mnie',
-    nadzor: nadzor(), ai: { jest: !!AI_KLUCZ, tekst: ai.tekst, czas: ai.czas, blad: ai.blad, trwa: ai.trwa, co: AI_CO_MIN } };
+    zgloszenia: zglDlaKadry(), nadzor: nadzor(), ai: { jest: !!AI_KLUCZ, tekst: ai.tekst, czas: ai.czas, blad: ai.blad, trwa: ai.trwa, co: AI_CO_MIN } };
 }
 
 function api(body) {
@@ -165,8 +225,9 @@ function api(body) {
   let komunikat = null;
   if (a && typeof a === 'object') {
     if (r.rola === 'gildia') {
-      if (!['kup', 'sprzedaj', 'atak', 'martwy', 'znajdzka'].includes(a.typ)) return { blad: 'Gildia nie może tego zgłosić.' };
-      komunikat = wykonaj(r.i, 'gildia', a);
+      if (a.typ === 'zdjecie') komunikat = noweZgloszenie(r.i, a);
+      else if (!['kup', 'sprzedaj', 'atak', 'martwy', 'znajdzka'].includes(a.typ)) return { blad: 'Gildia nie może tego zgłosić.' };
+      else komunikat = wykonaj(r.i, 'gildia', a);
     } else if (r.rola === 'punktowy') {
       if (a.typ !== 'zywy') return { blad: 'Punktowy może tylko zaliczać punkty żywe.' };
       const g = Number(a.gildia);
@@ -201,10 +262,19 @@ function api(body) {
           const kopia = path.join(DATA_DIR, 'kopia-' + new Date().toISOString().replace(/[:.]/g, '-'));
           fs.mkdirSync(kopia, { recursive: true });
           for (const p of [PLIK_STAN, PLIK_DZIENNIK]) if (fs.existsSync(p)) fs.copyFileSync(p, path.join(kopia, path.basename(p)));
-          stany = cfg.gildie.map(() => E.nowyStan(cfg)); dziennik = [];
+          if (fs.existsSync(PLIK_ZGL)) fs.copyFileSync(PLIK_ZGL, path.join(kopia, 'zgloszenia.json'));
+          fs.renameSync(KAT_ZDJ, path.join(kopia, 'zdjecia')); fs.mkdirSync(KAT_ZDJ, { recursive: true });
+          stany = cfg.gildie.map(() => E.nowyStan(cfg)); dziennik = []; zgloszenia = []; zapiszZgl();
           zapiszStan(); fs.writeFileSync(PLIK_DZIENNIK, '');
           komunikat = { ok: true, tekst: 'Gra wyzerowana. Poprzedni stan zapisany w kopii na serwerze.' };
         }
+      } else if (a.typ === 'zgloszenie') {
+        komunikat = decyzja(a);
+      } else if (a.typ === 'usun_zdjecia') {
+        let n = 0; for (const f of fs.readdirSync(KAT_ZDJ)) { fs.unlinkSync(path.join(KAT_ZDJ, f)); n++; }
+        zgloszenia.forEach(z => { if (z.zdjecie) { z.zdjecie = false; z.usuniete = true; } }); zapiszZgl();
+        wpis(null, 'kadra', 'Usunięcie zdjęć', { ok: true, msg: 'Usunięto zdjęć: ' + n + '.', delta: 0 });
+        komunikat = { ok: true, tekst: 'Usunięto zdjęć z serwera: ' + n + '. Opisy i decyzje zostały.' };
       } else if (a.typ === 'ai') {
         if (!AI_KLUCZ) komunikat = { ok: false, tekst: 'Brak klucza AI. Dodajcie zmienną ANTHROPIC_API_KEY w Coolify.' };
         else if (ai.trwa) komunikat = { ok: true, tekst: 'Analiza już trwa.' };
@@ -287,17 +357,33 @@ const serwer = http.createServer((req, res) => {
     ob.eksport = Date.now();
     if (url.pathname === '/eksport.json') {
       res.writeHead(200, { 'content-type': 'application/json; charset=utf-8', 'content-disposition': 'attachment; filename="bursztynowe-miasto-stan.json"' });
-      return res.end(JSON.stringify({ kiedy: new Date().toISOString(), konfiguracja: cfg, stany, ranking: E.ranking(cfg, stany), dziennik }, null, 1));
+      return res.end(JSON.stringify({ kiedy: new Date().toISOString(), konfiguracja: cfg, stany, ranking: E.ranking(cfg, stany), dziennik, zgloszenia }, null, 1));
     }
     const wiersze = [['czas', 'gildia', 'kto', 'zgloszenie', 'wynik', 'przyjete', 'zmiana_bursztynu', 'bursztyn_po']].concat(
       dziennik.map(d => [d.czas, d.g == null ? '' : (cfg.gildie[d.g] || { nazwa: '?' }).nazwa, d.kto, d.opis, d.wynik, d.ok ? 'tak' : 'nie', d.delta, d.b]));
     res.writeHead(200, { 'content-type': 'text/csv; charset=utf-8', 'content-disposition': 'attachment; filename="bursztynowe-miasto-dziennik.csv"' });
     return res.end('﻿' + wiersze.map(w => w.map(csv).join(';')).join('\n'));
   }
+  if (req.method === 'POST' && url.pathname === '/zdjecie') {
+    if (zablokowany(ip)) return json(429, { blad: 'Za dużo złych haseł.' });
+    let dane = ''; req.on('data', c => { dane += c; if (dane.length > 2000) req.destroy(); });
+    req.on('end', () => {
+      let b = {}; try { b = JSON.parse(dane || '{}'); } catch (e) {}
+      const r = rola(b.haslo);
+      if (!r || r.rola !== 'kadra') { zlaProba(ip); return json(403, { blad: 'Tylko dla kadry.' }); }
+      const z = zgloszenia.find(x => x.id === b.id);
+      if (!z || !z.zdjecie) return json(404, { blad: 'Brak zdjęcia.' });
+      const plik = path.join(KAT_ZDJ, z.id + '.' + (z.zdjecie === 'jpeg' || z.zdjecie === true ? 'jpg' : z.zdjecie));
+      if (!fs.existsSync(plik)) return json(404, { blad: 'Brak zdjęcia.' });
+      res.writeHead(200, { 'content-type': z.zdjecie === 'png' ? 'image/png' : z.zdjecie === 'webp' ? 'image/webp' : 'image/jpeg', 'cache-control': 'private, max-age=3600' });
+      fs.createReadStream(plik).pipe(res);
+    });
+    return;
+  }
   if (req.method === 'POST' && url.pathname === '/api') {
     if (zablokowany(ip)) return json(429, { blad: 'Za dużo złych haseł. Spróbujcie za minutę.' });
     let dane = '';
-    req.on('data', c => { dane += c; if (dane.length > 400000) req.destroy(); });
+    req.on('data', c => { dane += c; if (dane.length > 3000000) req.destroy(); });
     req.on('end', () => {
       let body;
       try { body = JSON.parse(dane || '{}'); } catch (e) { return json(400, { blad: 'Niepoprawne zapytanie.' }); }

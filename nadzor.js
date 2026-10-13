@@ -146,6 +146,13 @@ function analiza(cfg, stany, dziennik, ob, min, ms) {
     if (nikt.length && nikt.length < cfg.znajdzki.length) dodaj('z-nikt', 'info', 'Znajdźki', 'Nikt jeszcze nie znalazł: ' + nikt.join(', ') + '. Może zniknęły albo są za dobrze schowane.');
   }
 
+  // ---------- zgłoszenia ze zdjęciem ----------
+  const czeka = (ob.zgloszenia || []).filter(z => z.stan === 'czeka');
+  if (czeka.length) {
+    const najst = Math.round((ms - Math.min(...czeka.map(z => z.t))) / 60000);
+    if (najst >= 4) dodaj('zdj', najst >= 10 ? 'zle' : 'uwaga', 'Zdjęcia', 'Do sprawdzenia: ' + czeka.length + ', najstarsze czeka ' + najst + ' min. Gildie czekają na punkty (zakładka Zdjęcia).');
+  }
+
   // ---------- punkty żywe ----------
   const wszystkieOceny = dziennik.filter(d => d.typ === 'zywy' && d.ok && typeof d.ile === 'number').map(d => d.ile);
   const sredniaAll = wszystkieOceny.length ? wszystkieOceny.reduce((a, b) => a + b, 0) / wszystkieOceny.length : null;

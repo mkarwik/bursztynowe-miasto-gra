@@ -26,7 +26,7 @@ function nowyStan(cfg) {
   const start = cfg.ustawienia.start_bursztyn;
   // b = bursztyn w skarbcu, z = zdobyty w całej grze, p = zdobyte porty, fail = nieudane ataki na następny port,
   // late = ataki w ostatnich 10 minutach, md/mt = punkty martwe zaliczone / zużyte próby, zn = znajdźki, zy = punkty żywe
-  return { b: start, z: start, p: 0, s, bud: {}, fail: 0, late: 0, md: {}, mt: {}, zn: {}, zy: {}, zt: {} };
+  return { b: start, z: start, p: 0, s, bud: {}, fail: 0, late: 0, md: {}, mt: {}, zn: {}, zy: {}, zt: {}, zf: 0 };
 }
 
 function staty(cfg, st) {
@@ -91,7 +91,7 @@ function obronaPortu(cfg, st, t) {
 
 /**
  * Wykonuje jedną akcję. Zwraca { ok, msg, delta, st } z nowym stanem (wejściowy stan nie jest zmieniany).
- * a.typ: kup | sprzedaj | atak | martwy | znajdzka | zywy | korekta
+ * a.typ: kup | sprzedaj | atak | martwy | znajdzka | znajdzka_foto | zywy | korekta
  * ctx: { min: minuty od północy, kosc: () => 1..6 }
  */
 function akcja(cfg, stanWe, a, ctx) {
@@ -101,7 +101,8 @@ function akcja(cfg, stanWe, a, ctx) {
   const nie = msg => ({ ok: false, msg, delta: 0, st: stanWe });
   const tak = (msg, delta, extra) => Object.assign({ ok: true, msg, delta, st }, extra || {});
 
-  if (a.typ !== 'korekta') {
+  // korekty i zaliczenia zdjęć przez kadrę działają także po końcu gry (kadra może sprawdzać z opóźnieniem)
+  if (a.typ !== 'korekta' && a.typ !== 'znajdzka_foto') {
     if (f === 'przed') return nie('Gra jeszcze się nie zaczęła.');
     if (f === 'koniec') return nie('Gra już się skończyła.');
   }
@@ -206,6 +207,15 @@ function akcja(cfg, stanWe, a, ctx) {
     return tak('Punkt żywy ' + pkt.nazwa + (wizyty ? ' (wizyta ' + (wizyty + 1) + ')' : '') + ': ocena ' + ocena + (nagroda !== ocena ? ', z bonusami +' + nagroda : ', +' + nagroda) + '.', nagroda);
   }
 
+  if (a.typ === 'znajdzka_foto') {
+    const limit = u.zdjecia_limit || 0;
+    const ile = st.zf || 0;
+    if (limit > 0 && ile >= limit) return nie('Ta gildia ma już ' + ile + ' znajdziek ze zdjęć, a limit to ' + limit + '.');
+    const nagroda = u.nagroda_znajdzka + (st.bud.kantor ? u.kantor_bonus : 0);
+    st.zf = ile + 1; st.b += nagroda; st.z += nagroda;
+    return tak('Znajdźka ze zdjęcia zaliczona, +' + nagroda + '.', nagroda);
+  }
+
   if (a.typ === 'korekta') {
     const ile = Math.trunc(Number(a.ile));
     if (!Number.isFinite(ile) || ile === 0) return nie('Podajcie liczbę różną od zera.');
@@ -222,12 +232,12 @@ function edytujStan(cfg, stanWe, n) {
   const nie = msg => ({ ok: false, msg, delta: 0, st: stanWe });
   const calk = (v, min, max) => Number.isInteger(v) && v >= min && v <= max;
   n = n && typeof n === 'object' ? n : {};
-  const pola = [['b', 'bursztyn', -100000, 1000000], ['z', 'zdobyty bursztyn', 0, 1000000], ['p', 'porty', 0, cfg.porty.length], ['fail', 'nieudane ataki na następny port', 0, 999], ['late', 'ataki w ostatnich 10 minutach', 0, 999]];
+  const pola = [['b', 'bursztyn', -100000, 1000000], ['z', 'zdobyty bursztyn', 0, 1000000], ['p', 'porty', 0, cfg.porty.length], ['fail', 'nieudane ataki na następny port', 0, 999], ['late', 'ataki w ostatnich 10 minutach', 0, 999], ['zf', 'znajdźki ze zdjęć', 0, 999]];
   for (const [k, etykieta, min, max] of pola) {
     if (n[k] === undefined || n[k] === null || n[k] === '') continue;
     const v = Number(n[k]);
     if (!calk(v, min, max)) return nie('Pole „' + etykieta + '” musi być liczbą całkowitą od ' + min + ' do ' + max + '.');
-    if (st[k] !== v) { zm.push(etykieta + ' ' + st[k] + ' → ' + v); st[k] = v; }
+    if ((st[k] || 0) !== v) { zm.push(etykieta + ' ' + (st[k] || 0) + ' → ' + v); st[k] = v; }
   }
   if (n.s) for (const x of cfg.statki) {
     if (n.s[x.id] === undefined || n.s[x.id] === '') continue;
@@ -308,7 +318,8 @@ function widokGildii(cfg, stany, i, min) {
     tabelaPortow: cfg.porty.map((p, k) => ({ nr: k + 1, nazwa: p.nazwa, broni: p.broni, obrona: TAKTYKI.map(t => p[t.id] >= NIE_DA_SIE ? null : p[t.id]), lup: p.lup, zdobyty: k < st.p, nastepny: k === st.p })),
     martwe: cfg.punkty_martwe.map((p, k) => ({ nr: k, nazwa: p.nazwa, pytanie: p.pytanie || '', nagroda: p.nagroda, zaliczony: !!st.md[k], zostaloProb: Math.max(0, u.proby_martwy - (st.mt[k] || 0)) })),
     zywe: cfg.punkty_zywe.map((p, k) => { const od = kiedyZnowu(cfg, st, k); return { nazwa: p.nazwa, godziny: p.godziny || '', wizyty: st.zy[k] || 0, limit: u.zywy_wizyty, znowuOd: od != null && min < od ? hhmm(od) : null }; }),
-    znajdzki: { znalezione: Object.keys(st.zn).length, wszystkie: cfg.znajdzki.length },
+    znajdzki: { znalezione: Object.keys(st.zn).length + (st.zf || 0), zKodu: Object.keys(st.zn).length, zeZdjec: st.zf || 0, wszystkie: cfg.znajdzki.length },
+    zdjecia: !!u.zdjecia, zdjeciaLimit: u.zdjecia_limit || 0,
     ranking: ukryty ? [] : rank.map(x => ({ miejsce: x.miejsce, nazwa: x.nazwa, porty: x.porty, ja: x.i === i })),
     godziny: u.pilnuj_godzin ? { ostatnie: u.ostatnie_10_min, koniec: u.koniec_gry } : null,
   };
@@ -322,7 +333,7 @@ function sprawdzKonfiguracje(cfg) {
   lista('gildie', 1); lista('statki', 1); lista('budowle', 0); lista('porty', 1); lista('punkty_martwe', 0); lista('punkty_zywe', 0); lista('znajdzki', 0);
   if (b.length) return b;
   const u = cfg.ustawienia;
-  for (const k of ['start_bursztyn', 'port_bonus', 'kram_bonus', 'sklad_bonus', 'kantor_bonus', 'stocznia_znizka', 'natarcie_mnoznik', 'limit_statkow', 'proby_martwy', 'nagroda_znajdzka', 'zywy_min', 'zywy_max', 'zywy_wizyty', 'zywy_przerwa_min', 'ukryj_ranking_min']) {
+  for (const k of ['start_bursztyn', 'port_bonus', 'kram_bonus', 'sklad_bonus', 'kantor_bonus', 'stocznia_znizka', 'natarcie_mnoznik', 'limit_statkow', 'proby_martwy', 'nagroda_znajdzka', 'zywy_min', 'zywy_max', 'zywy_wizyty', 'zywy_przerwa_min', 'ukryj_ranking_min', 'zdjecia_limit']) {
     if (typeof u[k] !== 'number' || !Number.isFinite(u[k])) b.push('Ustawienie „' + k + '” musi być liczbą.');
   }
   for (const k of ['start_gry', 'ostatnie_10_min', 'koniec_gry']) if (minuty(u[k]) == null) b.push('Ustawienie „' + k + '” musi mieć postać GG:MM.');

@@ -32,8 +32,9 @@ p{ margin:0 }
 .banner{ background:var(--amber-tint); border-left:5px solid var(--amber); padding:10px 12px; font-weight:500 }
 .banner.bad{ background:var(--bad-tint); border-color:var(--bad) }
 .tabs{ position:fixed; left:0; right:0; bottom:0; z-index:6; background:#fff; border-top:1px solid var(--line); padding-bottom:env(safe-area-inset-bottom,0px) }
-.tabs .in{ max-width:720px; margin:0 auto; display:flex }
-.tabs button{ flex:1; border:0; background:none; padding:12px 2px 10px; font-size:.82rem; font-weight:700; color:var(--mute); border-top:3px solid transparent; cursor:pointer; min-width:0 }
+.tabs .in{ max-width:720px; margin:0 auto; display:flex; overflow-x:auto; scrollbar-width:none } .tabs .in::-webkit-scrollbar{ display:none }
+.tabs button{ flex:1; border:0; background:none; padding:12px 2px 10px; font-size:.82rem; font-weight:700; color:var(--mute); border-top:3px solid transparent; cursor:pointer; min-width:0; white-space:nowrap }
+.tabs.wiele button{ flex:1 0 auto; padding-left:10px; padding-right:10px }
 .tabs button[aria-selected="true"]{ color:var(--sea); border-top-color:var(--amber) }
 .card{ background:var(--card); border:1px solid var(--line); padding:12px 14px; display:flex; flex-direction:column; gap:8px }
 .card.next{ border:2px solid var(--sea) }
@@ -63,6 +64,7 @@ th{ font-size:.7rem; text-transform:uppercase; letter-spacing:.05em; color:var(-
 td.n,th.n{ text-align:right; font-variant-numeric:tabular-nums; white-space:nowrap }
 tr.me td{ background:var(--amber-tint); font-weight:700 } tr.done td{ color:var(--mute) } tr.cur td{ background:var(--tint); font-weight:700 }
 .scroll{ overflow-x:auto }
+label.btn{ display:inline-flex; align-items:center } .zdj img{ display:block; width:100%; max-height:420px; object-fit:contain; background:var(--tint); margin:8px 0 } .zdj .opis{ font-size:1.05rem; margin:6px 0 } .foto{ margin:8px 0; display:flex; flex-direction:column; gap:8px; align-items:flex-start } .foto img{ max-width:100%; max-height:260px; border:1px solid var(--line) } textarea{ width:100%; padding:10px; border:1px solid var(--line); background:#fff } .zgl{ margin-top:10px; border-top:1px solid var(--line); padding-top:6px } .zgl .row{ padding:5px 0; align-items:flex-start }
 .alert{ border-left:5px solid var(--line) } .alert.zle{ border-left-color:var(--bad); background:var(--bad-tint) } .alert.uwaga{ border-left-color:var(--amber) } .alert p{ margin-top:4px; white-space:pre-line } .btn.mini{ min-height:32px; padding:4px 12px; font-size:.85rem } .ai{ white-space:pre-wrap; margin-top:6px }
 table.cmp{ margin-bottom:6px } table.atk td{ vertical-align:middle } .btns.col{ flex-direction:column; align-items:stretch } .zasady ul{ margin:8px 0 0 18px; padding:0 } .zasady li{ margin:4px 0; font-size:.92rem } .zasady summary{ cursor:pointer } table.cmp td:first-child{ white-space:nowrap } table.cmp th,table.cmp td{ padding:7px 5px } table.cmp .n{ text-align:right; width:52px; font-variant-numeric:tabular-nums }
 table.porty th,table.porty td{ padding:7px 5px } table.porty td.n,table.porty th.n{ width:46px }
@@ -128,10 +130,24 @@ function wykonaj(akcja){
     S.zajete = false;
     if (o.blad){ if (o.zleHaslo) return wyloguj(o.blad); toast(o.blad, true); return; }
     S.w = o.widok; if (akcja && akcja.typ === 'zapisz_konfiguracje' && o.komunikat && o.komunikat.ok){ S.cfgEdycja = null; S.cfgOtwarte = null; }
+    if (akcja && akcja.typ === 'zdjecie' && o.komunikat && o.komunikat.ok){ S.foto = null; S.zglTekst = ''; }
     rysuj();
     var k = o.komunikat; if (!k) return;
     if (k.atak) wynikAtaku(k); else toast(k.tekst, !k.ok);
   }).catch(function(){ S.zajete = false; toast('Nie udało się wysłać. Sprawdźcie internet i spróbujcie jeszcze raz.', true); });
+}
+// Zmniejsza zdjęcie z telefonu do 1280 px i JPEG, żeby szybko poszło przez dane komórkowe.
+function zmniejsz(plik, cb){
+  var url = URL.createObjectURL(plik), img = new Image();
+  img.onload = function(){
+    var m = 1280, w = img.naturalWidth, h = img.naturalHeight, k = Math.min(1, m / Math.max(w, h));
+    var c = document.createElement('canvas'); c.width = Math.round(w * k); c.height = Math.round(h * k);
+    c.getContext('2d').drawImage(img, 0, 0, c.width, c.height); URL.revokeObjectURL(url);
+    var d = c.toDataURL('image/jpeg', 0.72); if (d.length > 1800000) d = c.toDataURL('image/jpeg', 0.5);
+    cb(d);
+  };
+  img.onerror = function(){ URL.revokeObjectURL(url); cb(null); };
+  img.src = url;
 }
 var toastT = null;
 function toast(tekst, zle){
@@ -182,9 +198,10 @@ function pasek(tytul, liczby){
   return '<div class="top"><div class="in"><div class="who">' + esc(tytul) + '</div><div class="nums">' + liczby.map(function(l){ return '<div class="num ' + (l[2] || '') + '"><b>' + esc(l[0]) + '</b><span>' + esc(l[1]) + '</span></div>'; }).join('') + '</div></div></div>';
 }
 function zakladki(lista){
-  return '<nav class="tabs"><div class="in" role="tablist">' + lista.map(function(t){ return '<button role="tab" data-tab="' + t[0] + '" aria-selected="' + (S.tab === t[0]) + '">' + esc(t[1]) + '</button>'; }).join('') + '</div></nav>';
+  return '<nav class="tabs' + (lista.length > 5 ? ' wiele' : '') + '"><div class="in" role="tablist">' + lista.map(function(t){ return '<button role="tab" data-tab="' + t[0] + '" aria-selected="' + (S.tab === t[0]) + '">' + esc(t[1]) + '</button>'; }).join('') + '</div></nav>';
 }
 function podepnijZakladki(){
+  var sel = $app.querySelector('.tabs [aria-selected="true"]'); if (sel && sel.scrollIntoView) try{ sel.scrollIntoView({ inline:'nearest', block:'nearest' }); }catch(e){}
   var b = document.querySelectorAll('[data-tab]');
   for (var i = 0; i < b.length; i++) b[i].onclick = function(){ S.tab = this.getAttribute('data-tab'); if (S.tab !== 'cennik') S.cfgEdycja = null; rysuj(); window.scrollTo(0, 0); };
 }
@@ -192,8 +209,21 @@ function wylogujLink(){ return '<p class="small" style="text-align:center"><butt
 function podepnijWyloguj(){ var b = document.getElementById('wyl'); if (b) b.onclick = function(){ wyloguj(); }; }
 
 // ---------- gildia ----------
+function powiadomZgloszenia(w){
+  var znane = {}; try{ znane = JSON.parse(pam('bm_zgl') || '{}') || {}; }catch(e){}
+  var nowe = (w.zgloszenia || []).filter(function(z){ return z.stan !== 'czeka' && !znane[z.id]; });
+  if (!nowe.length) return;
+  nowe.forEach(function(z){ znane[z.id] = 1; }); pam('bm_zgl', JSON.stringify(znane));
+  var ok = nowe.filter(function(z){ return z.stan === 'ok'; }), nie = nowe.filter(function(z){ return z.stan === 'nie'; });
+  var t = [];
+  if (ok.length) t.push('Kadra zaliczyła znajdźkę ze zdjęcia: +' + ok.reduce(function(a, z){ return a + z.delta; }, 0) + '.');
+  if (nie.length) t.push('Kadra odrzuciła zgłoszenie' + (nie[0].powod ? ': ' + nie[0].powod : '') + '.');
+  setTimeout(function(){ toast(t.join(' '), !ok.length); }, 50);
+  try{ navigator.vibrate && navigator.vibrate([120, 60, 120]); }catch(e){}
+}
 function rysujGildie(){
   var w = S.w; if (!S.tab) S.tab = 'flota';
+  powiadomZgloszenia(w);
   var h = pasek(w.nazwa, [[w.bursztyn, 'bursztyn', 'amb'], [w.porty + '/' + w.ilePortow, 'porty'], [w.rankingUkryty ? '?' : w.miejsce + '.', 'miejsce']]) + '<div class="wrap">';
   if (w.zamkniete) h += '<div class="banner bad">' + esc(w.zamkniete) + '</div>';
   else if (w.faza === 'ostatnie') h += '<div class="banner">Ostatnie 10 minut. Wolno przeprowadzić już tylko jeden atak. Koniec gry o ' + esc(w.godziny.koniec) + '.</div>';
@@ -214,6 +244,12 @@ function rysujGildie(){
   var zs = $app.querySelector('.zasady'); if (zs) zs.ontoggle = function(){ pam('bm_zasady', this.open ? '1' : '0'); };
   b = $app.querySelectorAll('[data-martwy]');
   for (i = 0; i < b.length; i++) b[i].onsubmit = function(e){ e.preventDefault(); var v = this.querySelector('input').value.trim(); if (!v) return toast('Wpiszcie odpowiedź.', true); this.querySelector('input').setAttribute('data-stale', '1'); wykonaj({ typ:'martwy', punkt: Number(this.dataset.martwy), odpowiedz: v }); };
+  var fp = document.getElementById('fotoPlik');
+  if (fp) fp.onchange = function(){ var f = this.files && this.files[0]; if (!f) return; zmniejsz(f, function(url){ if (!url) return toast('Nie udało się wczytać zdjęcia.', true); S.foto = url; rysuj(); }); };
+  var zt = document.getElementById('zglTekst'); if (zt) zt.oninput = function(){ S.zglTekst = this.value; };
+  var fu = document.getElementById('fotoUsun'); if (fu) fu.onclick = function(){ S.foto = null; rysuj(); };
+  var zw = document.getElementById('zglWyslij');
+  if (zw) zw.onclick = function(){ var t = document.getElementById('zglTekst'); var v = t.value.trim(); if (!v && !S.foto) return toast('Dodajcie zdjęcie albo opis.', true); t.setAttribute('data-stale', '1'); wykonaj({ typ:'zdjecie', tekst: v, foto: S.foto || '' }); };
   var fz = document.getElementById('fZnajdzka');
   if (fz) fz.onsubmit = function(e){ e.preventDefault(); var v = this.querySelector('input').value.trim(); if (!v) return toast('Wpiszcie kod.', true); this.querySelector('input').setAttribute('data-stale', '1'); wykonaj({ typ:'znajdzka', kod: v }); };
 }
@@ -279,8 +315,22 @@ function gAtak(w){
 }
 function gPunkty(w){
   var h = '<p class="sub">Każdy zdobyty port daje +' + w.portBonus + ' bursztynów do każdego zaliczonego punktu żywego i martwego.</p>';
-  h += '<h2>Znajdźka</h2><div class="card"><p class="sub">Znalezione: <b>' + w.znajdzki.znalezione + ' z ' + w.znajdzki.wszystkie + '</b>. Wpiszcie kod z kartki.</p>' +
-    '<form class="field" id="fZnajdzka"><input type="text" aria-label="Kod znajdźki" autocapitalize="characters" autocomplete="off" spellcheck="false" placeholder="Kod"' + (w.zamkniete ? ' disabled' : '') + '><button class="btn"' + (w.zamkniete ? ' disabled' : '') + '>Wyślij</button></form></div>';
+  h += '<h2>Znajdźka</h2><div class="card"><p class="sub">Znalezione: <b>' + (w.znajdzki.wszystkie ? w.znajdzki.zKodu + ' z ' + w.znajdzki.wszystkie : w.znajdzki.znalezione) + '</b>' + (w.znajdzki.zeZdjec ? ', ze zdjęć: <b>' + w.znajdzki.zeZdjec + '</b>' : '') + '.' + (w.znajdzki.wszystkie ? ' Macie kod z kartki? Wpiszcie go tutaj.' : '') + '</p>' +
+    (w.znajdzki.wszystkie ? '<form class="field" id="fZnajdzka"><input type="text" aria-label="Kod znajdźki" autocapitalize="characters" autocomplete="off" spellcheck="false" placeholder="Kod"' + (w.zamkniete ? ' disabled' : '') + '><button class="btn"' + (w.zamkniete ? ' disabled' : '') + '>Wyślij</button></form>' : '');
+  if (w.zdjecia){
+    h += '<h3 style="margin-top:12px">Zgłoszenie ze zdjęciem</h3><p class="sub">Zróbcie zdjęcie znajdźki albo opiszcie, co i gdzie znaleźliście. Kadra sprawdzi i doliczy bursztyn.</p>';
+    if (!w.zamkniete){
+      h += '<div class="foto">' + (S.foto ? '<img src="' + S.foto + '" alt="Wybrane zdjęcie"><button class="btn ghost mini" id="fotoUsun">Usuń zdjęcie</button>' :
+        '<label class="btn ghost" for="fotoPlik">Zrób albo wybierz zdjęcie</label>') + '<input type="file" id="fotoPlik" accept="image/*" capture="environment" hidden></div>' +
+        '<textarea id="zglTekst" rows="2" maxlength="300" placeholder="Opis, np. „tabliczka pod Żurawiem”" aria-label="Opis zgłoszenia">' + esc(S.zglTekst || '') + '</textarea>' +
+        '<div class="btns" style="margin-top:8px"><button class="btn" id="zglWyslij">Wyślij do sprawdzenia</button></div>';
+    }
+    if (w.zgloszenia && w.zgloszenia.length) h += '<div class="zgl">' + w.zgloszenia.map(function(z){
+      var stan = z.stan === 'czeka' ? '<span class="pill amb">czeka</span>' : z.stan === 'ok' ? '<span class="pill ok">+' + z.delta + '</span>' : '<span class="pill bad">odrzucone</span>';
+      return '<div class="row"><span>' + esc(z.czas) + ' · ' + (z.zdjecie ? 'zdjęcie' : '') + (z.zdjecie && z.tekst ? ', ' : '') + esc(z.tekst ? (z.tekst.length > 40 ? z.tekst.slice(0, 40) + '…' : z.tekst) : '') + (z.stan === 'nie' && z.powod ? '<br><span class="small">Powód: ' + esc(z.powod) + '</span>' : '') + '</span>' + stan + '</div>';
+    }).join('') + '</div>';
+  }
+  h += '</div>';
   h += '<h2>Punkty martwe</h2>';
   w.martwe.forEach(function(p){
     h += '<div class="card"><div class="row"><span class="name">' + esc(p.nazwa) + '</span>' + (p.zaliczony ? '<span class="pill ok">zaliczony</span>' : p.zostaloProb ? '<span class="pill">' + p.nagroda + ' bursztynów · prób: ' + p.zostaloProb + '</span>' : '<span class="pill bad">brak prób</span>') + '</div>' +
@@ -342,19 +392,28 @@ function rysujKadre(){
   var w = S.w; if (!S.tab) S.tab = 'nadzor';
   var nz = w.nadzor || { alerty: [] }, ack = potwierdzone(), widoczne = nz.alerty.filter(function(a){ return !ack[a.id]; });
   var pilne = widoczne.filter(function(a){ return a.poziom === 'zle'; }), wazne = widoczne.filter(function(a){ return a.poziom !== 'info'; }).length;
+  var czekaZdj = (w.zgloszenia || []).filter(function(z){ return z.stan === 'czeka'; }).length;
+  if (S.czekaZdj != null && czekaZdj > S.czekaZdj){ try{ navigator.vibrate && navigator.vibrate(120); }catch(e){} }
+  S.czekaZdj = czekaZdj;
   pilne.forEach(function(a){ if (!S.znane) S.znane = {}; if (!S.znane[a.id]){ S.znane[a.id] = 1; try{ navigator.vibrate && navigator.vibrate([150, 80, 150]); }catch(e){} } });
   var fazy = { przed:'przed startem', trwa:'gra trwa', ostatnie:'ostatnie 10 min', koniec:'po grze' };
   var h = pasek('Kadra', [[w.teraz.slice(0, 5), fazy[w.faza] || ''], [w.ileZdarzen, 'zdarzeń']]) + '<div class="wrap">';
   if (w.hasloKadryDomyslne) h += '<div class="banner bad">Działa domyślne hasło kadry. Ustawcie zmienną HASLO_KADRY na serwerze przed grą.</div>';
   if (S.tab !== 'nadzor' && pilne.length) h += '<div class="banner bad">Pilne sprawy: ' + pilne.length + '. Zobaczcie zakładkę Nadzór.</div>';
   if (S.tab === 'nadzor') h += kNadzor(w, widoczne, nz.alerty.length - widoczne.length);
+  if (S.tab === 'zdjecia') h += kZdjecia(w);
   if (S.tab === 'ranking') h += kRanking(w);
   if (S.tab === 'dziennik') h += kDziennik(w);
   if (S.tab === 'korekta') h += kKorekta(w);
   if (S.tab === 'cennik') h += kCennik(w);
   if (S.tab === 'gra') h += kGra(w);
-  h += '</div>' + zakladki([['nadzor', 'Nadzór' + (wazne ? ' (' + wazne + ')' : '')], ['ranking', 'Ranking'], ['dziennik', 'Dziennik'], ['korekta', 'Poprawki'], ['cennik', 'Cennik'], ['gra', 'Gra']]);
-  $app.innerHTML = h; podepnijZakladki(); podepnijWyloguj();
+  h += '</div>' + zakladki([['nadzor', 'Nadzór' + (wazne ? ' (' + wazne + ')' : '')]].concat(w.konfiguracja.ustawienia.zdjecia || czekaZdj ? [['zdjecia', 'Zdjęcia' + (czekaZdj ? ' (' + czekaZdj + ')' : '')]] : []).concat([['ranking', 'Ranking'], ['dziennik', 'Dziennik'], ['korekta', 'Poprawki'], ['cennik', 'Cennik'], ['gra', 'Gra']]));
+  $app.innerHTML = h; podepnijZakladki(); podepnijWyloguj(); zaladujZdjecia();
+  var zd = $app.querySelectorAll('[data-zalicz]');
+  for (var y = 0; y < zd.length; y++) zd[y].onclick = function(){ wykonaj({ typ:'zgloszenie', id: this.dataset.zalicz, decyzja:'ok' }); };
+  var zo = $app.querySelectorAll('[data-odrzuc]');
+  for (var y2 = 0; y2 < zo.length; y2++) zo[y2].onclick = function(){ var id = this.dataset.odrzuc, p = document.getElementById('pow-' + id); if (p) p.setAttribute('data-stale', '1'); wykonaj({ typ:'zgloszenie', id: id, decyzja:'nie', powod: p ? p.value.trim() : '' }); };
+  var uz = document.getElementById('usunZdj'); if (uz) uz.onclick = function(){ potwierdz('Usunąć wszystkie zdjęcia?', 'Zdjęcia znikną z serwera na zawsze. Opisy, decyzje i bursztyn zostają.', 'Usuń zdjęcia', { typ:'usun_zdjecia' }); };
   var f = document.getElementById('filtr'); if (f) f.onchange = function(){ S.filtr = this.value; rysuj(); };
   var fk = document.getElementById('fKor');
   if (fk) fk.onsubmit = function(e){
@@ -400,6 +459,42 @@ function kNadzor(w, al, ukryte){
     '<p class="small">Znajdźki znalezione przez gildie: ' + n.znajdzki.map(function(z){ return esc(z.kod) + ' ' + z.ile; }).join(' · ') + '</p>';
   return h;
 }
+// Zdjęcia pobiera się osobno (POST z hasłem), żeby hasło kadry nie trafiało do adresów.
+S.zdjCache = {};
+function zaladujZdjecia(){
+  var im = $app.querySelectorAll('img[data-zdj]');
+  for (var i = 0; i < im.length; i++) (function(el){
+    var id = el.dataset.zdj;
+    if (S.zdjCache[id] && S.zdjCache[id] !== 1){ el.src = S.zdjCache[id]; return; }
+    if (S.zdjCache[id] === 1) return;
+    S.zdjCache[id] = 1;
+    fetch('/zdjecie', { method:'POST', headers:{'content-type':'application/json'}, body: JSON.stringify({ haslo: S.haslo, id: id }) })
+      .then(function(r){ if (!r.ok) throw 0; return r.blob(); })
+      .then(function(b){ S.zdjCache[id] = URL.createObjectURL(b); var e = $app.querySelectorAll('img[data-zdj="' + id + '"]'); for (var k = 0; k < e.length; k++) e[k].src = S.zdjCache[id]; })
+      .catch(function(){ delete S.zdjCache[id]; el.alt = 'Nie udało się wczytać zdjęcia'; });
+  })(im[i]);
+}
+function kZdjecia(w){
+  var u = w.konfiguracja.ustawienia, z = w.zgloszenia || [], teraz = Date.now();
+  var czeka = z.filter(function(x){ return x.stan === 'czeka'; }).sort(function(a, b){ return a.t - b.t; });
+  var po = z.filter(function(x){ return x.stan !== 'czeka'; }).sort(function(a, b){ return b.t - a.t; }).slice(0, 30);
+  var h = '<h2>Zdjęcia do sprawdzenia</h2><p class="sub">Zaliczenie daje ' + u.nagroda_znajdzka + ' bursztynów (z Kantorem ' + (u.nagroda_znajdzka + u.kantor_bonus) + '). Gildia dostaje powiadomienie w ciągu kilku sekund.' + (u.zdjecia ? '' : ' <b>Zgłoszenia są wyłączone w Ustawieniach (zdjecia).</b>') + '</p>';
+  if (!czeka.length) h += '<div class="card"><p><b>Nic nie czeka.</b></p></div>';
+  czeka.forEach(function(x){
+    var st = w.stany[x.g] || {}, kantor = st.bud && st.bud.kantor, wczesniej = z.filter(function(y){ return y.g === x.g && y.stan === 'ok'; });
+    var min = Math.round((teraz - x.t) / 60000);
+    h += '<div class="card zdj"><div class="row"><span class="name">' + esc(x.gildia) + '</span><span class="pill ' + (min >= 10 ? 'bad' : min >= 4 ? 'amb' : '') + '">' + esc(x.czas.slice(0, 5)) + ' · ' + (min < 1 ? 'teraz' : min + ' min') + '</span></div>' +
+      (x.zdjecie ? '<img data-zdj="' + esc(x.id) + '" alt="Zdjęcie od gildii">' : '<p class="sub">Bez zdjęcia.</p>') +
+      (x.tekst ? '<p class="opis">„' + esc(x.tekst) + '”</p>' : '') +
+      '<p class="small">Ta gildia ma już znajdziek ze zdjęć: ' + (st.zf || 0) + (u.zdjecia_limit ? ' z ' + u.zdjecia_limit : '') + (wczesniej.length ? '. Wcześniej zaliczone: ' + wczesniej.slice(-4).map(function(y){ return '„' + esc(y.tekst || 'zdjęcie') + '”'; }).join(', ') : '') + '.</p>' +
+      '<div class="btns"><button class="btn" data-zalicz="' + esc(x.id) + '">Zalicz +' + (u.nagroda_znajdzka + (kantor ? u.kantor_bonus : 0)) + '</button></div>' +
+      '<div class="field" style="margin-top:8px"><input type="text" id="pow-' + esc(x.id) + '" placeholder="Powód odrzucenia (widzi go gildia)" aria-label="Powód odrzucenia"><button class="btn ghost" data-odrzuc="' + esc(x.id) + '">Odrzuć</button></div></div>';
+  });
+  if (po.length) h += '<h3>Sprawdzone</h3><div class="card">' + po.map(function(x){
+    return '<div class="row"><span>' + esc(x.czas.slice(0, 5)) + ' · <b>' + esc(x.gildia) + '</b> · ' + esc(x.tekst || (x.usuniete ? 'zdjęcie usunięte' : 'zdjęcie')) + (x.stan === 'nie' && x.powod ? '<br><span class="small">Powód: ' + esc(x.powod) + '</span>' : '') + '</span>' + (x.stan === 'ok' ? '<span class="pill ok">+' + x.delta + '</span>' : '<span class="pill bad">odrzucone</span>') + '</div>';
+  }).join('') + '</div><p class="small">Pomyłkę przy zaliczeniu cofa się w zakładce Poprawki (korekta bursztynu albo edycja gildii, pole „znajdźki ze zdjęć”).</p>';
+  return h;
+}
 function kRanking(w){
   var h = '<h2>Ranking</h2><div class="scroll"><table><tr><th>Miejsce</th><th>Gildia</th><th class="n">Porty</th><th class="n">Zdobyty</th><th class="n">Skarbiec</th><th class="n">Siła</th><th class="n">Zasięg</th><th class="n">Zwrot.</th></tr>';
   w.ranking.forEach(function(r){ h += '<tr><td>' + r.miejsce + '.</td><td class="nw"><b>' + esc(r.nazwa) + '</b></td><td class="n">' + r.porty + '</td><td class="n">' + r.zdobyty + '</td><td class="n">' + r.bursztyn + '</td><td class="n">' + r.sila + '</td><td class="n">' + r.zasieg + '</td><td class="n">' + r.zwrot + '</td></tr>'; });
@@ -436,13 +531,13 @@ function kEdycja(w){
     '<h3>Budowle</h3><div class="edg">' + c.budowle.map(function(x){ return chk('data-edb="' + esc(x.id) + '"', !!st.bud[x.id], x.nazwa); }).join('') + '</div>' +
     '<h3>Punkty żywe: liczba wizyt</h3><div class="edg">' + c.punkty_zywe.map(function(x, i){ return num('data-edzy="' + i + '"', st.zy[i] || 0, x.nazwa, 0); }).join('') + '</div>' +
     '<h3>Punkty martwe</h3><div class="edg">' + c.punkty_martwe.map(function(x, i){ return chk('data-edmd="' + i + '"', !!st.md[i], x.nazwa + ' zaliczony') + num('data-edmt="' + i + '"', st.mt[i] || 0, x.nazwa + ': zużyte próby', 0); }).join('') + '</div>' +
-    '<h3>Znajdźki</h3><div class="edg">' + c.znajdzki.map(function(x, i){ return chk('data-edzn="' + i + '"', !!st.zn[i], x); }).join('') + '</div>' +
+    '<h3>Znajdźki</h3><div class="edg">' + num('id="ed_zf"', st.zf || 0, 'Znajdźki ze zdjęć', 0) + c.znajdzki.map(function(x, i){ return chk('data-edzn="' + i + '"', !!st.zn[i], x); }).join('') + '</div>' +
     '<button class="btn amber">Zapisz zmiany w gildii</button></form>';
   return h;
 }
 function zbierzEdycje(){
   var n = { s:{}, bud:{}, md:{}, mt:{}, zy:{}, zn:{} }, v = function(id){ return document.getElementById(id).value; }, i, p;
-  n.b = v('ed_b'); n.z = v('ed_z'); n.p = v('ed_p'); n.fail = v('ed_fail');
+  n.b = v('ed_b'); n.z = v('ed_z'); n.p = v('ed_p'); n.fail = v('ed_fail'); n.zf = v('ed_zf');
   p = $app.querySelectorAll('[data-eds]'); for (i = 0; i < p.length; i++) n.s[p[i].dataset.eds] = p[i].value;
   p = $app.querySelectorAll('[data-edb]'); for (i = 0; i < p.length; i++) n.bud[p[i].dataset.edb] = p[i].checked;
   p = $app.querySelectorAll('[data-edzy]'); for (i = 0; i < p.length; i++) n.zy[p[i].dataset.edzy] = p[i].value;
@@ -506,6 +601,7 @@ function kGra(w){
   var q = encodeURIComponent(S.haslo), u = w.konfiguracja.ustawienia;
   return '<h2>Gra</h2><div class="card"><p>Godzina na serwerze: <b>' + esc(w.teraz) + '</b>.</p><p>Pilnowanie godzin: <b>' + (u.pilnuj_godzin ? 'włączone' : 'wyłączone (tryb próbny)') + '</b>. Start ' + esc(u.start_gry) + ', ostatnie 10 minut od ' + esc(u.ostatnie_10_min) + ', koniec ' + esc(u.koniec_gry) + '.</p></div>' +
     '<h2>Eksport</h2><div class="card"><p class="sub">Kopia na wypadek awarii i do podsumowania po grze.</p><div class="btns"><a class="btn ghost" style="text-decoration:none;display:inline-flex;align-items:center" href="/eksport.csv?haslo=' + q + '">Dziennik (CSV do Excela)</a><a class="btn ghost" style="text-decoration:none;display:inline-flex;align-items:center" href="/eksport.json?haslo=' + q + '">Pełny stan (JSON)</a></div></div>' +
+    '<h2>Zdjęcia</h2><div class="card"><p class="sub">Zdjęcia od gildii leżą na serwerze w katalogu danych. Po grze warto je usunąć.</p><div class="btns"><button class="btn ghost" id="usunZdj">Usuń wszystkie zdjęcia</button></div></div>' +
     '<h2>Wyzerowanie gry</h2><form class="card" id="fReset"><p class="sub">Usuwa cały postęp wszystkich gildii i dziennik. Cennik i hasła zostają. Poprzedni stan zapisuje się w kopii na serwerze. Wpiszcie słowo RESET.</p><div class="field"><input id="resetTxt" type="text" aria-label="Wpisz RESET" autocomplete="off" autocapitalize="characters"><button class="btn bad">Wyzeruj grę</button></div></form>' + wylogujLink();
 }
 
