@@ -24,7 +24,7 @@ Ustawienia: `zdjecia` (włącza zgłoszenia), `zdjecia_limit` (ile znajdziek ze 
 
 ### Nadzór i analiza AI
 
-Zakładka **Nadzór** w widoku kadry działa bez żadnych ustawień. Reguły sprawdzają na bieżąco: gildie bez kontaktu, gildie w tyle albo podejrzanie szybkie, długi dług, serie porażek, punkty martwe z dużą liczbą złych odpowiedzi (z najczęstszą złą odpowiedzią), błędne kody znajdziek, punkty żywe bez wpisów lub bez telefonu punktowego, różnice w ocenianiu i tempo całej gry w porównaniu z symulacją. Przed grą pokazuje listę rzeczy do uzupełnienia.
+Zakładka **Nadzór** w widoku kadry działa bez żadnych ustawień. Reguły sprawdzają na bieżąco: gildie bez kontaktu, gildie w tyle albo podejrzanie szybkie, długi dług, serie porażek, punkty martwe z dużą liczbą złych odpowiedzi (z najczęstszą złą odpowiedzią), błędne kody znajdziek, punkty żywe, które dawno nic nie wpisały, różnice w ocenianiu i tempo całej gry w porównaniu z symulacją. Przed grą pokazuje listę rzeczy do uzupełnienia.
 
 Podsumowanie AI jest opcjonalne. W Coolify dodaj zmienną **ANTHROPIC_API_KEY** z kluczem z console.anthropic.com. Wtedy w Nadzorze pojawia się „Ocena AI”: na przycisk i automatycznie co `AI_CO_MIN` minut w trakcie gry (domyślnie 15, 0 wyłącza; działa przy `pilnuj_godzin` na „tak”). Model ustawia `ANTHROPIC_MODEL` (domyślnie `claude-sonnet-5-5`). Do AI trafia stan gry i ostatnie wpisy dziennika, bez haseł.
 
@@ -37,7 +37,7 @@ Informacje, kto był w aplikacji, serwer trzyma tylko w pamięci, więc po resta
    - **Gildie i hasła**: nazwy gildii i hasło dla każdej. Hasła muszą być różne. Przyciski „Dodaj wiersz” i „Usuń ostatni” zmieniają liczbę gildii.
    - **Ustawienia**: `haslo_punktowych`, godziny gry, zakres oceny punktu żywego (`zywy_min`, `zywy_max`), ile razy gildia może przyjść na ten sam punkt żywy (`zywy_wizyty`, 0 oznacza bez limitu) i po ilu minutach najwcześniej (`zywy_przerwa_min`). `ukryj_ranking_min` ustawia, na ile minut przed końcem gildie przestają widzieć ranking (0 wyłącza). Działa tylko przy `pilnuj_godzin` na „tak”; kadra widzi ranking zawsze.
    - **Punkty martwe**: nazwa, pytanie (pokazuje się gildiom), poprawna odpowiedź i nagroda, osobno dla każdego punktu.
-   - **Punkty żywe**: nazwa i godziny otwarcia (sam tekst, np. 08:40–10:00). Gildie widzą godziny w zakładce Punkty. Aplikacja ich nie pilnuje, więc punktowy może zaliczyć zadanie po czasie.
+   - **Punkty żywe**: nazwy. Punkty nie mają godzin: punktowy zalicza zadanie wtedy, kiedy gildia przyjdzie.
    - **Kody znajdziek**: jeden kod w wierszu.
 3. Zrób próbę: zaloguj się jako gildia i jako punktowy, kup coś, zaatakuj, zalicz punkt.
 4. Przed grą: w **Ustawieniach** przestaw `pilnuj_godzin` na „tak”, a w zakładce **Gra** wyzeruj grę (słowo RESET).

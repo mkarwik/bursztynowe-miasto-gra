@@ -339,7 +339,7 @@ function gPunkty(w){
     h += '</div>';
   });
   h += '<h2>Punkty żywe</h2><div class="card"><p class="sub">Te punkty ocenia punktowy po wykonaniu zadania. Na ten sam punkt można wracać po kolejne zadanie.</p>' +
-    w.zywe.map(function(p){ return '<div class="row"><span>' + esc(p.nazwa) + (p.godziny ? ' <span class="small">' + esc(p.godziny) + '</span>' : '') + '</span>' + (p.wizyty ? '<span class="pill ok">wizyt: ' + p.wizyty + (p.limit ? ' z ' + p.limit : '') + (p.znowuOd ? ', znowu od ' + esc(p.znowuOd) : '') + '</span>' : '<span class="pill">jeszcze nie byliście</span>') + '</div>'; }).join('') + '</div>';
+    w.zywe.map(function(p){ return '<div class="row"><span>' + esc(p.nazwa) + '</span>' + (p.wizyty ? '<span class="pill ok">wizyt: ' + p.wizyty + (p.limit ? ' z ' + p.limit : '') + (p.znowuOd ? ', znowu od ' + esc(p.znowuOd) : '') + '</span>' : '<span class="pill">jeszcze nie byliście</span>') + '</div>'; }).join('') + '</div>';
   return h;
 }
 function gDziennik(w){
@@ -452,8 +452,8 @@ function kNadzor(w, al, ukryte){
   h += '<h3>Gildie</h3><div class="scroll"><table><tr><th>Gildia</th><th class="n">Porty</th><th class="n">Zdobyty</th><th class="n">Skarbiec</th><th class="n">Aplikacja</th><th class="n">Punkt</th></tr>' +
     n.gildie.map(function(g){ return '<tr><td class="nw">' + esc(g.nazwa) + '</td><td class="n">' + g.porty + '</td><td class="n">' + g.zdobyty + '</td><td class="n">' + g.bursztyn + '</td><td class="n">' + temu(g.widziana) + '</td><td class="n">' + temu(g.ostatniPunkt) + '</td></tr>'; }).join('') + '</table></div>' +
     '<p class="small">„Aplikacja” i „Punkt”: ile minut temu gildia miała otwartą aplikację i zaliczyła ostatni punkt.</p>';
-  h += '<h3>Punkty żywe</h3><div class="scroll"><table><tr><th>Punkt</th><th>Godziny</th><th class="n">Wizyt</th><th class="n">30 min</th><th class="n">Śr.</th><th class="n">Wpis</th><th class="n">Telefon</th></tr>' +
-    n.zywe.map(function(p){ return '<tr' + (p.otwarty === false ? ' class="done"' : '') + '><td class="nw">' + esc(p.nazwa) + '</td><td class="nw">' + esc(p.godziny || '—') + '</td><td class="n">' + p.wizyt + '</td><td class="n">' + p.ost30 + '</td><td class="n">' + (p.srednia == null ? '—' : p.srednia) + '</td><td class="n">' + temu(p.ostatniWpis) + '</td><td class="n">' + temu(p.telefon) + '</td></tr>'; }).join('') + '</table></div>';
+  h += '<h3>Punkty żywe</h3><div class="scroll"><table><tr><th>Punkt</th><th class="n">Wizyt</th><th class="n">30 min</th><th class="n">Śr.</th><th class="n">Wpis</th><th class="n">Telefon</th></tr>' +
+    n.zywe.map(function(p){ return '<tr' + (p.czynny ? '' : ' class="done"') + '><td class="nw">' + esc(p.nazwa) + '</td><td class="n">' + p.wizyt + '</td><td class="n">' + p.ost30 + '</td><td class="n">' + (p.srednia == null ? '—' : p.srednia) + '</td><td class="n">' + temu(p.ostatniWpis) + '</td><td class="n">' + temu(p.telefon) + '</td></tr>'; }).join('') + '</table></div>';
   h += '<h3>Punkty martwe</h3><div class="scroll"><table><tr><th>Punkt</th><th class="n">Zaliczyło</th><th class="n">Źle</th><th>Najczęstsza zła</th></tr>' +
     n.martwe.map(function(p){ return '<tr><td class="nw">' + esc(p.nazwa) + '</td><td class="n">' + p.gildieDobre + '</td><td class="n">' + p.gildieZle + '</td><td>' + esc(p.czesta || '—') + '</td></tr>'; }).join('') + '</table></div>' +
     '<p class="small">Znajdźki znalezione przez gildie: ' + n.znajdzki.map(function(z){ return esc(z.kod) + ' ' + z.ile; }).join(' · ') + '</p>';
@@ -590,7 +590,7 @@ function zapiszCennik(){
 var CFG_NOWY = {
   gildie: function(n){ return { nazwa: 'Gildia ' + n, haslo: 'gildia' + n + '-zmien' }; },
   punkty_martwe: function(n){ return { nazwa: 'Punkt martwy ' + n, pytanie: '', odpowiedz: '', nagroda: 25 }; },
-  punkty_zywe: function(n){ return { nazwa: 'Punkt żywy ' + n, godziny: '' }; }
+  punkty_zywe: function(n){ return { nazwa: 'Punkt żywy ' + n }; }
 };
 function zmienWiersze(sekcja, dodaj){
   var z = zbierzCennik(), l = z.c[sekcja];

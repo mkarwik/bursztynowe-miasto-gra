@@ -33,23 +33,20 @@ test('nadzór: cisza gildii, zły punkt martwy, punkt żywy bez wpisów, za szyb
   // gildia 1 ma podejrzanie dużo
   stany[1].z = 2500;
   for (let g = 0; g < 9; g++) if (g !== 1) stany[g].z = 300;
-  // Karczmarz (08:40–10:00) dostał jeden wpis na początku
+  // Karczmarz miał jeden wpis na początku, potem cisza
   dz.push({ t: minut(5), czas: '08:45:00', g: 2, kto: 'punktowy', typ: 'zywy', pkt: 0, ile: 40, ok: true, delta: 40, b: 90, wynik: 'ok' });
   const n = N.analiza(cfg, stany, dz, ob, 9 * 60 + 40, minut(60));
   const id = x => n.alerty.find(a => a.id === x);
   assert.ok(id('g9-nigdy'), 'gildia, która się nie zalogowała');
   assert.ok(id('g3-cisza'), 'gildia bez kontaktu');
   assert.equal(id('m0').poziom, 'zle'); assert.match(id('m0').tekst, /1343/);
-  assert.ok(id('z0-cisza'), 'punkt żywy bez wpisów');
-  assert.ok(!id('z3-cisza'), 'punkt zamknięty o tej porze nie jest alarmem');
+  assert.equal(id('z0-cisza').poziom, 'info', 'punkt, który przestał wpisywać, to tylko informacja');
+  assert.ok(!id('z3-cisza'), 'punkt bez żadnych wpisów nie jest alarmem (mógł jeszcze nie ruszyć)');
   assert.ok(id('g1-szybko'));
   assert.equal(n.alerty[0].poziom, 'zle', 'pilne na górze');
 });
 
-test('nadzór: przedziały godzin i krzywa', () => {
-  assert.deepEqual(N.przedzial('08:40–10:00'), [520, 600]);
-  assert.deepEqual(N.przedzial('10:05-11:20'), [605, 680]);
-  assert.equal(N.przedzial(''), null);
+test('nadzór: krzywa tempa', () => {
   assert.equal(N.krzywa('zdobyty_sr', 0), 50);
   assert.ok(N.krzywa('zdobyty_sr', 30) > 190 && N.krzywa('zdobyty_sr', 30) < 330);
 });

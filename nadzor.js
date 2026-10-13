@@ -21,10 +21,6 @@ function krzywa(k, m) {
 
 const minDnia = czas => { const p = String(czas || '').split(':').map(Number); return p.length >= 2 ? p[0] * 60 + p[1] + (p[2] || 0) / 60 : null; };
 const hhmm = m => E.hhmm(Math.floor(m));
-function przedzial(txt) {
-  const m = String(txt || '').match(/(\d{1,2}):(\d{2})\s*[-–—]\s*(\d{1,2}):(\d{2})/);
-  return m ? [(+m[1]) * 60 + (+m[2]), (+m[3]) * 60 + (+m[4])] : null;
-}
 const mediana = a => { if (!a.length) return 0; const b = a.slice().sort((x, y) => x - y); return b[Math.floor(b.length / 2)]; };
 const ileTemu = (ms, teraz) => ms ? Math.round((teraz - ms) / 60000) : null;
 
@@ -57,8 +53,6 @@ function analiza(cfg, stany, dziennik, ob, min, ms) {
   if (bezPytania) kontrola.push(bezPytania + ' punktów martwych nie ma pytania.');
   if (cfg.znajdzki.some(k => /^BURSZTYN\d+$/i.test(k))) kontrola.push('Kody znajdziek są przykładowe (BURSZTYN1…). Zmieńcie je, bo łatwo je zgadnąć.');
   if (!u.pilnuj_godzin) kontrola.push('Pilnowanie godzin jest wyłączone. Przed grą ustawcie „pilnuj_godzin” na „tak”.');
-  const bezGodzin = cfg.punkty_zywe.filter(p => !przedzial(p.godziny)).length;
-  if (bezGodzin) kontrola.push(bezGodzin + ' punktów żywych nie ma godzin w postaci 08:40–10:00 (nadzór nie sprawdzi, czy działają).');
   if (kontrola.length && (f === 'przed' || f === 'trwa' && m < 15)) dodaj('kontrola', f === 'przed' ? 'uwaga' : 'zle', 'Przygotowanie przed grą', kontrola.map(t => '• ' + t).join('\n'));
   if (f === 'przed') {
     const zalogowane = cfg.gildie.filter((g, i) => ob.gildie[i]).length;
@@ -156,31 +150,25 @@ function analiza(cfg, stany, dziennik, ob, min, ms) {
   // ---------- punkty żywe ----------
   const wszystkieOceny = dziennik.filter(d => d.typ === 'zywy' && d.ok && typeof d.ile === 'number').map(d => d.ile);
   const sredniaAll = wszystkieOceny.length ? wszystkieOceny.reduce((a, b) => a + b, 0) / wszystkieOceny.length : null;
+  // Punkty żywe nie mają godzin: punktowi sami decydują, kiedy działają. Nadzór patrzy tylko na to, co widać w danych.
   const zywe = cfg.punkty_zywe.map((p, k) => {
     const w = dziennik.filter(d => d.typ === 'zywy' && d.ok && Number(d.pkt) === k);
     const oceny = w.map(d => d.ile).filter(x => typeof x === 'number');
     const ost = w[w.length - 1];
-    const okno = przedzial(p.godziny);
-    const otwarty = okno ? (min >= okno[0] && min < okno[1]) : null;
     const urzP = urz.filter(x => x.rola === 'punktowy' && x.punkt === k).sort((a, b) => b.t - a.t)[0];
-    return { k, nazwa: p.nazwa, godziny: p.godziny || '', otwarty, wizyt: w.length, ost30: w.filter(d => ms - d.t < 30 * 60000).length,
+    const telefon = urzP ? ileTemu(urzP.t, ms) : (ob.punkty[k] ? ileTemu(ob.punkty[k], ms) : null);
+    return { k, nazwa: p.nazwa, wizyt: w.length, ost30: w.filter(d => ms - d.t < 30 * 60000).length,
       srednia: oceny.length ? Math.round(oceny.reduce((a, b) => a + b, 0) / oceny.length) : null,
-      ostatniWpis: ost ? ileTemu(ost.t, ms) : null, telefon: urzP ? ileTemu(urzP.t, ms) : (ob.punkty[k] ? ileTemu(ob.punkty[k], ms) : null),
-      odOtwarcia: okno && otwarty ? Math.round(min - okno[0]) : null, oceny };
+      ostatniWpis: ost ? ileTemu(ost.t, ms) : null, telefon, czynny: (ost && ms - ost.t < 30 * 60000) || (telefon != null && telefon < 10), oceny };
   });
   if (graTrwa) for (const p of zywe) {
     const id = 'z' + p.k + '-';
-    const czynny = p.otwarty === true || (p.otwarty === null);
-    if (!czynny) continue;
-    const odKiedy = p.ostatniWpis != null ? p.ostatniWpis : (p.odOtwarcia != null ? p.odOtwarcia : Math.round(m));
-    if (odKiedy >= 25 && (p.odOtwarcia == null || p.odOtwarcia >= 25)) dodaj(id + 'cisza', odKiedy >= 40 ? 'zle' : 'uwaga', p.nazwa, (p.ostatniWpis == null ? 'Od otwarcia' : 'Od ' + p.ostatniWpis + ' min') + ' żadnego wpisu, choć punkt powinien działać' + (p.godziny ? ' (' + p.godziny + ')' : '') + '. Czy punktowy jest na miejscu?');
-    if (p.telefon == null && (p.odOtwarcia == null ? m >= 10 : p.odOtwarcia >= 10)) dodaj(id + 'tel', 'uwaga', p.nazwa, 'Żaden telefon punktowego nie wybrał tego punktu w aplikacji.');
-    else if (p.telefon != null && p.telefon >= 15 && (p.ostatniWpis == null || p.ostatniWpis >= 15)) dodaj(id + 'tel', 'uwaga', p.nazwa, 'Telefon punktowego niewidoczny od ' + p.telefon + ' min.');
+    if (p.ostatniWpis != null && p.ostatniWpis >= 35 && (p.telefon == null || p.telefon >= 15)) dodaj(id + 'cisza', 'info', p.nazwa, 'Ostatni wpis ' + p.ostatniWpis + ' min temu' + (p.telefon != null ? ', telefon punktowego niewidoczny od ' + p.telefon + ' min' : '') + '. Jeśli punkt miał teraz działać, sprawdźcie.');
     if (sredniaAll != null && p.oceny.length >= 4 && Math.abs(p.srednia - sredniaAll) >= 12) dodaj(id + 'ocena', 'uwaga', p.nazwa, 'Średnia ocena ' + p.srednia + ', a na wszystkich punktach ' + Math.round(sredniaAll) + '. Punktowy ocenia ' + (p.srednia > sredniaAll ? 'dużo hojniej' : 'dużo surowiej') + ' niż inni.');
     if (p.oceny.length >= 5 && new Set(p.oceny).size === 1) dodaj(id + 'stala', 'info', p.nazwa, 'Wszystkie oceny takie same (' + p.oceny[0] + '). Ocena przestaje różnicować drużyny.');
   }
   if (graTrwa) {
-    const czynne = zywe.filter(p => p.otwarty !== false);
+    const czynne = zywe.filter(p => p.czynny);
     if (czynne.length >= 2) {
       const mx = czynne.reduce((a, b) => b.ost30 > a.ost30 ? b : a), mn = czynne.reduce((a, b) => b.ost30 < a.ost30 ? b : a);
       if (mx.ost30 >= 6 && mx.ost30 >= 3 * Math.max(1, mn.ost30)) dodaj('z-obl', 'info', 'Punkty żywe', mx.nazwa + ' jest oblegany (' + mx.ost30 + ' wizyt w 30 min), a ' + mn.nazwa + ' prawie pusty (' + mn.ost30 + '). Można kierować gildie dalej.');
@@ -190,8 +178,6 @@ function analiza(cfg, stany, dziennik, ob, min, ms) {
   // ---------- kadra i punktowi ----------
   if (graTrwa) {
     if (kadraAkt === 0) dodaj('kadra', 'info', 'Kadra', 'Żaden telefon kadry nie był w aplikacji od 10 min (poza tym).');
-    const otwarte = zywe.filter(p => p.otwarty === true).length;
-    if (otwarte && punktAkt < otwarte) dodaj('punktowi', 'uwaga', 'Punktowi', 'Aktywnych telefonów punktowych: ' + punktAkt + ', a otwartych punktów żywych: ' + otwarte + '.');
   }
   if (graTrwa && m >= 50 && (!ob.eksport || ms - ob.eksport > 60 * 60000)) dodaj('kopia', 'info', 'Kopia', 'Pobierzcie kopię zapasową (zakładka Gra, eksport JSON).');
 
@@ -210,4 +196,4 @@ function analiza(cfg, stany, dziennik, ob, min, ms) {
     urzadzenia: { kadra: kadraAkt, punktowi: punktAkt, gildie: aktywne('gildia', 10).length }, koniec: koniec != null ? hhmm(koniec) : null };
 }
 
-module.exports = { analiza, krzywa, przedzial, KRZYWA };
+module.exports = { analiza, krzywa, KRZYWA };

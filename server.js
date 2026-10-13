@@ -297,7 +297,7 @@ function migawka() {
   return JSON.stringify({ teraz: n.teraz, faza: n.faza, minutaGry: n.minutaGry, koniec: n.koniec, tempo: n.tempo, urzadzenia: n.urzadzenia,
     alerty: n.alerty.map(a => a.poziom + ' | ' + a.kto + ' | ' + a.tekst),
     gildie: n.gildie.map(g => ({ nazwa: g.nazwa, porty: g.porty, zdobyty: g.zdobyty, skarbiec: g.bursztyn, nieudaneZRzedu: g.nieudane, minOdOtwarciaAplikacji: g.widziana, minOdPunktu: g.ostatniPunkt, minOdZakupu: g.ostatniZakup, minOdAtaku: g.ostatniAtak, zakupy: g.zakupy, korekty: g.korekty })),
-    punktyZywe: n.zywe.map(p => ({ nazwa: p.nazwa, godziny: p.godziny, otwarty: p.otwarty, wizyt: p.wizyt, wizyt30min: p.ost30, srednia: p.srednia, minOdWpisu: p.ostatniWpis })),
+    punktyZywe: n.zywe.map(p => ({ nazwa: p.nazwa, wizyt: p.wizyt, wizyt30min: p.ost30, srednia: p.srednia, minOdWpisu: p.ostatniWpis })),
     punktyMartwe: n.martwe.map(p => ({ nazwa: p.nazwa, zaliczyli: p.zaliczyli, gildieZle: p.gildieZle, najczestszaZla: p.czesta })),
     znajdzki: n.znajdzki.map(z => z.ile),
     dziennik: dziennik.slice(-40).map(d => [d.czas.slice(0, 5), d.g == null ? '-' : (cfg.gildie[d.g] || {}).nazwa, d.kto, d.opis, d.ok ? d.wynik : 'ODRZUCONE: ' + d.wynik].join(' | ')) });
