@@ -54,6 +54,11 @@ function kiedyZnowu(cfg, st, i) {
   return st.zt[i] + p;
 }
 
+// Czy gildia musi zaliczyć inny punkt, zanim wróci na punkt żywy i (nie może przyjść dwa razy z rzędu).
+function musiInny(cfg, st, i) {
+  return !!cfg.ustawienia.zywy_inny_punkt && (st.zy[i] || 0) > 0 && st.ost === 'z' + i;
+}
+
 function kosztPorazki(naprawa, t) {
   return t === 0 ? naprawa : t === 1 ? Math.ceil(naprawa / 2) : 0;
 }
@@ -169,7 +174,7 @@ function akcja(cfg, stanWe, a, ctx) {
     const zuzyte = st.mt[i] || 0;
     if (zuzyte >= u.proby_martwy) return nie('Wykorzystaliście już wszystkie próby na tym punkcie.');
     if (norm(a.odpowiedz) === '') return nie('Wpiszcie odpowiedź.');
-    st.mt[i] = zuzyte + 1;
+    st.mt[i] = zuzyte + 1; st.ost = 'm' + i;
     if (norm(a.odpowiedz) !== norm(pkt.odpowiedz)) {
       const zostalo = u.proby_martwy - st.mt[i];
       return tak('Błędna odpowiedź na punkcie ' + pkt.nazwa + '. ' + (zostalo > 0 ? 'Zostało prób: ' + zostalo + '.' : 'To była ostatnia próba.'), 0, { bledna: true });
@@ -199,11 +204,12 @@ function akcja(cfg, stanWe, a, ctx) {
     st.zt = st.zt || {};
     const od = kiedyZnowu(cfg, st, i);
     if (od != null && ctx.min < od) return nie('Ta gildia była tu niedawno. Kolejna wizyta na punkcie ' + pkt.nazwa + ' możliwa od ' + hhmm(od) + '.');
+    if (musiInny(cfg, st, i)) return nie('Ta gildia była tu ostatnio. Zanim wróci na punkt ' + pkt.nazwa + ', musi zaliczyć jakiś inny punkt.');
     const ocena = Number(a.ile);
     if (!Number.isInteger(ocena) || ocena < u.zywy_min || ocena > u.zywy_max) return nie('Ocena musi być liczbą całkowitą od ' + u.zywy_min + ' do ' + u.zywy_max + '.');
     // bonus z Kramu i portów tylko wtedy, gdy gildia w ogóle coś dostała za zadanie
     const nagroda = ocena > 0 ? ocena + (st.bud.kram ? u.kram_bonus : 0) + st.p * u.port_bonus : 0;
-    st.zy[i] = wizyty + 1; st.zt[i] = ctx.min; st.b += nagroda; st.z += nagroda;
+    st.zy[i] = wizyty + 1; st.zt[i] = ctx.min; st.ost = 'z' + i; st.b += nagroda; st.z += nagroda;
     return tak('Punkt żywy ' + pkt.nazwa + (wizyty ? ' (wizyta ' + (wizyty + 1) + ')' : '') + ': ocena ' + ocena + (nagroda !== ocena ? ', z bonusami +' + nagroda : ', +' + nagroda) + '.', nagroda);
   }
 
@@ -317,7 +323,7 @@ function widokGildii(cfg, stany, i, min) {
     }),
     tabelaPortow: cfg.porty.map((p, k) => ({ nr: k + 1, nazwa: p.nazwa, broni: p.broni, obrona: TAKTYKI.map(t => p[t.id] >= NIE_DA_SIE ? null : p[t.id]), lup: p.lup, zdobyty: k < st.p, nastepny: k === st.p })),
     martwe: cfg.punkty_martwe.map((p, k) => ({ nr: k, nazwa: p.nazwa, pytanie: p.pytanie || '', nagroda: p.nagroda, zaliczony: !!st.md[k], zostaloProb: Math.max(0, u.proby_martwy - (st.mt[k] || 0)) })),
-    zywe: cfg.punkty_zywe.map((p, k) => { const od = kiedyZnowu(cfg, st, k); return { nazwa: p.nazwa, wizyty: st.zy[k] || 0, limit: u.zywy_wizyty, znowuOd: od != null && min < od ? hhmm(od) : null }; }),
+    zywe: cfg.punkty_zywe.map((p, k) => { const od = kiedyZnowu(cfg, st, k); return { nazwa: p.nazwa, wizyty: st.zy[k] || 0, limit: u.zywy_wizyty, znowuOd: od != null && min < od ? hhmm(od) : null, innyNajpierw: musiInny(cfg, st, k) }; }),
     znajdzki: { znalezione: Object.keys(st.zn).length + (st.zf || 0), zKodu: Object.keys(st.zn).length, zeZdjec: st.zf || 0, wszystkie: cfg.znajdzki.length },
     zdjecia: !!u.zdjecia, zdjeciaLimit: u.zdjecia_limit || 0,
     ranking: ukryty ? [] : rank.map(x => ({ miejsce: x.miejsce, nazwa: x.nazwa, porty: x.porty, ja: x.i === i })),
@@ -349,4 +355,4 @@ function sprawdzKonfiguracje(cfg) {
   return b;
 }
 
-module.exports = { TAKTYKI, NIE_DA_SIE, minuty, norm, nowyStan, staty, cenaStatku, kosztPorazki, faza, szansa, obronaPortu, akcja, edytujStan, kiedyZnowu, hhmm, ranking, widokGildii, sprawdzKonfiguracje };
+module.exports = { TAKTYKI, NIE_DA_SIE, minuty, norm, nowyStan, staty, cenaStatku, kosztPorazki, faza, szansa, obronaPortu, akcja, edytujStan, kiedyZnowu, musiInny, hhmm, ranking, widokGildii, sprawdzKonfiguracje };

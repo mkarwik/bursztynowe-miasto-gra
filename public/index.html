@@ -339,7 +339,7 @@ function gPunkty(w){
     h += '</div>';
   });
   h += '<h2>Punkty żywe</h2><div class="card"><p class="sub">Te punkty ocenia punktowy po wykonaniu zadania. Na ten sam punkt można wracać po kolejne zadanie.</p>' +
-    w.zywe.map(function(p){ return '<div class="row"><span>' + esc(p.nazwa) + '</span>' + (p.wizyty ? '<span class="pill ok">wizyt: ' + p.wizyty + (p.limit ? ' z ' + p.limit : '') + (p.znowuOd ? ', znowu od ' + esc(p.znowuOd) : '') + '</span>' : '<span class="pill">jeszcze nie byliście</span>') + '</div>'; }).join('') + '</div>';
+    w.zywe.map(function(p){ return '<div class="row"><span>' + esc(p.nazwa) + '</span>' + (p.wizyty ? '<span class="pill ok">wizyt: ' + p.wizyty + (p.limit ? ' z ' + p.limit : '') + (p.znowuOd ? ', znowu od ' + esc(p.znowuOd) : '') + (p.innyNajpierw && !(p.limit && p.wizyty >= p.limit) ? ', najpierw inny punkt' : '') + '</span>' : '<span class="pill">jeszcze nie byliście</span>') + '</div>'; }).join('') + '</div>';
   return h;
 }
 function gDziennik(w){
@@ -364,10 +364,10 @@ function rysujPunktowego(){
   h += '<h2>Na którym punkcie stoisz?</h2><div class="btns">' + w.punkty.map(function(p, i){ return '<button class="btn ' + (S.punkt === i ? '' : 'ghost') + '" data-punkt="' + i + '">' + esc(p) + '</button>'; }).join('') + '</div>';
   if (S.punkt !== null){
     var szyb = [w.ocena.max - 25, w.ocena.max - 15, w.ocena.max].filter(function(x){ return x >= w.ocena.min; });
-    h += '<h2>Oceń zadanie</h2><p class="sub">Wpisz, ile bursztynu gildia dostaje za zadanie: od ' + w.ocena.min + ' do ' + w.ocena.max + '. ' + (w.limit ? 'Jedna gildia może tu przyjść najwyżej ' + w.limit + ' razy' : 'Gildia może tu wracać dowolną liczbę razy') + (w.przerwa ? ', z przerwą co najmniej ' + w.przerwa + ' minut.' : '.') + '</p>';
+    h += '<h2>Oceń zadanie</h2><p class="sub">Wpisz, ile bursztynu gildia dostaje za zadanie: od ' + w.ocena.min + ' do ' + w.ocena.max + '. ' + (w.limit ? 'Jedna gildia może tu przyjść najwyżej ' + w.limit + ' razy' : 'Gildia może tu wracać dowolną liczbę razy') + (w.przerwa ? ', z przerwą co najmniej ' + w.przerwa + ' minut' : '') + (w.innyPunkt ? ', i nie dwa razy z rzędu: pomiędzy musi zaliczyć inny punkt.' : '.') + '</p>';
     w.gildie.forEach(function(g, i){
-      var wiz = g.wizyty[S.punkt], czeka = g.znowuOd[S.punkt], zrobione = (w.limit > 0 && wiz >= w.limit) || !!czeka, zam = w.faza === 'przed' || w.faza === 'koniec';
-      h += '<div class="card"><div class="row"><span class="name">' + esc(g.nazwa) + '</span>' + (wiz ? '<span class="pill ' + (zrobione ? 'bad' : 'ok') + '">wizyt: ' + wiz + (w.limit ? ' z ' + w.limit : '') + '</span>' : '') + '</div>' + (czeka ? '<p class="sub">Była tu niedawno. Znowu może przyjść od ' + esc(czeka) + '.</p>' : '') +
+      var wiz = g.wizyty[S.punkt], czeka = g.znowuOd[S.punkt], inny = g.inny && g.inny[S.punkt] && !(w.limit > 0 && wiz >= w.limit), zrobione = (w.limit > 0 && wiz >= w.limit) || !!czeka || inny, zam = w.faza === 'przed' || w.faza === 'koniec';
+      h += '<div class="card"><div class="row"><span class="name">' + esc(g.nazwa) + '</span>' + (wiz ? '<span class="pill ' + (zrobione ? 'bad' : 'ok') + '">wizyt: ' + wiz + (w.limit ? ' z ' + w.limit : '') + '</span>' : '') + '</div>' + (czeka ? '<p class="sub">Była tu niedawno. Znowu może przyjść od ' + esc(czeka) + '.</p>' : '') + (inny ? '<p class="sub">Była tu ostatnio. Zanim wróci, musi zaliczyć jakiś inny punkt.</p>' : '') +
         (zrobione ? '' : '<form class="field" novalidate data-zal="' + i + '"><input type="number" inputmode="numeric" step="1" min="' + w.ocena.min + '" max="' + w.ocena.max + '" placeholder="' + w.ocena.min + ' do ' + w.ocena.max + '" aria-label="Ocena: ' + esc(g.nazwa) + '"' + (zam ? ' disabled' : '') + '><button class="btn"' + (zam ? ' disabled' : '') + '>Zalicz</button></form>' +
           '<div class="btns">' + szyb.map(function(x){ return '<button type="button" class="btn ghost" style="min-height:38px;padding:6px 14px" data-szybko="' + i + '" data-v="' + x + '"' + (zam ? ' disabled' : '') + '>' + x + '</button>'; }).join('') + '</div>') + '</div>';
     });

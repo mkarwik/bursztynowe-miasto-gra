@@ -18,7 +18,8 @@
   "zywy_min": 0,
   "zywy_max": 55,
   "zywy_wizyty": 2,
-  "zywy_przerwa_min": 30,
+  "zywy_przerwa_min": 0,
+  "zywy_inny_punkt": true,
   "ukryj_ranking_min": 30,
   "zdjecia": true,
   "zdjecia_limit": 10

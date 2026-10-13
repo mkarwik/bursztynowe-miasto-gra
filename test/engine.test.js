@@ -34,19 +34,29 @@ test('scenariusz: zakup, atak, punkty, kram, sprzedaż', () => {
   assert.equal(st.z, 50 + 10 + 30 + 60 + 15);
 });
 
-test('punkt żywy: przerwa między wizytami', () => {
+test('punkt żywy: między wizytami trzeba zaliczyć inny punkt', () => {
   const cfg = kopia(cfg0); let st = E.nowyStan(cfg), r;
-  assert.equal(cfg.ustawienia.zywy_wizyty, 2); assert.equal(cfg.ustawienia.zywy_przerwa_min, 30);
+  assert.equal(cfg.ustawienia.zywy_wizyty, 2); assert.equal(cfg.ustawienia.zywy_przerwa_min, 0); assert.equal(cfg.ustawienia.zywy_inny_punkt, true);
   r = E.akcja(cfg, st, { typ: 'zywy', punkt: 0, ile: 40 }, ctx(null, 600)); assert.ok(r.ok); st = r.st;
-  r = E.akcja(cfg, st, { typ: 'zywy', punkt: 0, ile: 40 }, ctx(null, 620)); assert.equal(r.ok, false); assert.match(r.msg, /10:30/);
-  assert.equal(E.widokGildii(cfg, [st], 0, 620).zywe[0].znowuOd, '10:30'); assert.equal(E.widokGildii(cfg, [st], 0, 631).zywe[0].znowuOd, null);
-  assert.ok(E.akcja(cfg, st, { typ: 'zywy', punkt: 1, ile: 40 }, ctx(null, 601)).ok, 'inny punkt bez czekania');
-  r = E.akcja(cfg, st, { typ: 'zywy', punkt: 0, ile: 40 }, ctx(null, 630)); assert.ok(r.ok); st = r.st;
+  r = E.akcja(cfg, st, { typ: 'zywy', punkt: 0, ile: 40 }, ctx(null, 640)); assert.equal(r.ok, false, 'dwa razy z rzędu nie'); assert.match(r.msg, /inny punkt/);
+  assert.equal(E.widokGildii(cfg, [st], 0, 640).zywe[0].innyNajpierw, true);
+  r = E.akcja(cfg, st, { typ: 'martwy', punkt: 3, odpowiedz: 'zle' }, ctx(null, 645)); st = r.st;      // nawet błędna próba na martwym się liczy
+  assert.equal(E.widokGildii(cfg, [st], 0, 646).zywe[0].innyNajpierw, false);
+  r = E.akcja(cfg, st, { typ: 'zywy', punkt: 0, ile: 40 }, ctx(null, 646)); assert.ok(r.ok, 'po innym punkcie od razu można'); st = r.st;
+  r = E.akcja(cfg, st, { typ: 'zywy', punkt: 1, ile: 40 }, ctx(null, 650)); st = r.st;
   r = E.akcja(cfg, st, { typ: 'zywy', punkt: 0, ile: 40 }, ctx(null, 700)); assert.equal(r.ok, false, 'trzecia wizyta ponad limit');
+  // znajdźka nie jest punktem
+  st = E.nowyStan(cfg); st = E.akcja(cfg, st, { typ: 'zywy', punkt: 2, ile: 30 }, ctx()).st; st = E.akcja(cfg, st, { typ: 'znajdzka', kod: 'BURSZTYN1' }, ctx()).st;
+  assert.equal(E.akcja(cfg, st, { typ: 'zywy', punkt: 2, ile: 30 }, ctx()).ok, false);
+  // przerwa w minutach nadal działa, jeśli ktoś ją ustawi
+  const c2 = kopia(cfg0); c2.ustawienia.zywy_przerwa_min = 30; c2.ustawienia.zywy_inny_punkt = false; st = E.nowyStan(c2);
+  st = E.akcja(c2, st, { typ: 'zywy', punkt: 0, ile: 40 }, ctx(null, 600)).st;
+  r = E.akcja(c2, st, { typ: 'zywy', punkt: 0, ile: 40 }, ctx(null, 620)); assert.equal(r.ok, false); assert.match(r.msg, /10:30/);
+  assert.ok(E.akcja(c2, st, { typ: 'zywy', punkt: 0, ile: 40 }, ctx(null, 631)).ok);
 });
 
 test('punkt żywy: kilka wizyt do limitu, bez limitu przy zerze', () => {
-  const cfg = kopia(cfg0); cfg.ustawienia.zywy_wizyty = 3; cfg.ustawienia.zywy_przerwa_min = 0; let st = E.nowyStan(cfg), r;
+  const cfg = kopia(cfg0); cfg.ustawienia.zywy_wizyty = 3; cfg.ustawienia.zywy_przerwa_min = 0; cfg.ustawienia.zywy_inny_punkt = false; let st = E.nowyStan(cfg), r;
   for (let k = 0; k < 3; k++) { r = E.akcja(cfg, st, { typ: 'zywy', punkt: 2, ile: 40 }, ctx()); assert.ok(r.ok); st = r.st; }
   assert.equal(st.zy[2], 3); assert.equal(st.b, 50 + 120);
   assert.equal(E.akcja(cfg, st, { typ: 'zywy', punkt: 2, ile: 40 }, ctx()).ok, false);

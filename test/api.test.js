@@ -33,7 +33,7 @@ test('serwer: role, akcje, dziennik, trwałość po restarcie', async () => {
     let p = await api('punkt-zmien-mnie'); assert.equal(p.widok.rola, 'punktowy'); assert.equal(p.widok.gildie.length, 10);
     p = await api('punkt-zmien-mnie', { typ: 'zywy', gildia: 1, punkt: 2, ile: 99 }); assert.equal(p.komunikat.ok, false);
     p = await api('punkt-zmien-mnie', { typ: 'zywy', gildia: 1, punkt: 2, ile: 55 }); assert.ok(p.komunikat.ok); assert.equal(p.widok.gildie[1].wizyty[2], 1);
-    assert.ok(p.widok.gildie[1].znowuOd[2], 'po wizycie widać godzinę kolejnej');
+    assert.equal(p.widok.gildie[1].inny[2], true, 'po wizycie widać, że najpierw inny punkt');
     p = await api('punkt-zmien-mnie', { typ: 'zywy', gildia: 1, punkt: 2, ile: 55 }); assert.equal(p.komunikat.ok, false, 'druga wizyta od razu jest odrzucona');
     p = await api('punkt-zmien-mnie', { typ: 'zywy', gildia: 1, punkt: 3, ile: 0 }); assert.ok(p.komunikat.ok);
     p = await api('punkt-zmien-mnie', { typ: 'kup', co: 'sznika' }); assert.ok(p.blad);

@@ -201,7 +201,8 @@ function widok(r) {
       limit: cfg.ustawienia.zywy_wizyty,
       przerwa: cfg.ustawienia.zywy_przerwa_min,
       gildie: cfg.gildie.map((g, i) => ({ nazwa: g.nazwa, wizyty: cfg.punkty_zywe.map((p, k) => stany[i].zy[k] || 0),
-        znowuOd: cfg.punkty_zywe.map((p, k) => { const od = E.kiedyZnowu(cfg, stany[i], k); return od != null && t.min < od ? E.hhmm(od) : null; }) })) };
+        znowuOd: cfg.punkty_zywe.map((p, k) => { const od = E.kiedyZnowu(cfg, stany[i], k); return od != null && t.min < od ? E.hhmm(od) : null; }),
+        inny: cfg.punkty_zywe.map((p, k) => E.musiInny(cfg, stany[i], k)) })), innyPunkt: !!cfg.ustawienia.zywy_inny_punkt };
   }
   const rank = E.ranking(cfg, stany);
   return { rola: 'kadra', faza: E.faza(cfg, t.min), teraz: t.czas,

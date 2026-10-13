@@ -35,7 +35,7 @@ Informacje, kto był w aplikacji, serwer trzyma tylko w pamięci, więc po resta
 1. Wejdź na stronę i zaloguj się hasłem kadry.
 2. Zakładka **Cennik**:
    - **Gildie i hasła**: nazwy gildii i hasło dla każdej. Hasła muszą być różne. Przyciski „Dodaj wiersz” i „Usuń ostatni” zmieniają liczbę gildii.
-   - **Ustawienia**: `haslo_punktowych`, godziny gry, zakres oceny punktu żywego (`zywy_min`, `zywy_max`), ile razy gildia może przyjść na ten sam punkt żywy (`zywy_wizyty`, 0 oznacza bez limitu) i po ilu minutach najwcześniej (`zywy_przerwa_min`). `ukryj_ranking_min` ustawia, na ile minut przed końcem gildie przestają widzieć ranking (0 wyłącza). Działa tylko przy `pilnuj_godzin` na „tak”; kadra widzi ranking zawsze.
+   - **Ustawienia**: `haslo_punktowych`, godziny gry, zakres oceny punktu żywego (`zywy_min`, `zywy_max`), ile razy gildia może przyjść na ten sam punkt żywy (`zywy_wizyty`, 0 oznacza bez limitu), czy między wizytami musi zaliczyć inny punkt (`zywy_inny_punkt`) i opcjonalna przerwa w minutach (`zywy_przerwa_min`, 0 wyłącza). `ukryj_ranking_min` ustawia, na ile minut przed końcem gildie przestają widzieć ranking (0 wyłącza). Działa tylko przy `pilnuj_godzin` na „tak”; kadra widzi ranking zawsze.
    - **Punkty martwe**: nazwa, pytanie (pokazuje się gildiom), poprawna odpowiedź i nagroda, osobno dla każdego punktu.
    - **Punkty żywe**: nazwy. Punkty nie mają godzin: punktowy zalicza zadanie wtedy, kiedy gildia przyjdzie.
    - **Kody znajdziek**: jeden kod w wierszu.
