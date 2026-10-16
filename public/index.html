@@ -73,6 +73,7 @@ label.btn{ display:inline-flex; align-items:center; justify-content:center } .bt
 .zblok{ background:var(--bad-tint); color:var(--bad); font-weight:700; padding:8px; text-align:center } .zznal{ display:flex; flex-direction:column; gap:4px } .zprz{ display:flex; gap:6px; align-items:center }
 .zinstr{ max-height:90vh; overflow:auto } .zprzyklad{ border-left:4px solid var(--ok); padding:6px 10px; background:var(--ok-tint); display:flex; flex-direction:column; gap:6px } .zprzyklad.zle{ border-left-color:var(--bad); background:var(--bad-tint) } .zprzyklad p{ font-size:.92rem }
 .card.test{ border:2px dashed var(--sea); background:var(--tint) } .card.test .field{ margin-top:8px } .card.test select{ flex:1 }
+.zpyt{ background:var(--amber-tint); border-left:4px solid var(--amber); padding:8px 10px; font-size:.95rem } .zlinia{ margin-top:6px }
 .banner.ok{ background:var(--ok-tint); border-color:var(--ok) } .card.zest{ border-left:5px solid var(--amber) }
 @media (prefers-reduced-motion:no-preference){ .zbtn.zly{ animation:trz .3s } @keyframes trz{ 25%{ transform:translateX(-4px) } 75%{ transform:translateX(4px) } } }
 .alert{ border-left:5px solid var(--line) } .alert.zle{ border-left-color:var(--bad); background:var(--bad-tint) } .alert.uwaga{ border-left-color:var(--amber) } .alert p{ margin-top:4px; white-space:pre-line } .btn.mini{ min-height:32px; padding:4px 12px; font-size:.85rem } .ai{ white-space:pre-wrap; margin-top:6px; line-height:1.45 }
@@ -229,9 +230,9 @@ function powiadomZgloszenia(w){
   try{ navigator.vibrate && navigator.vibrate([120, 60, 120]); }catch(e){}
 }
 function rysujGildie(){
-  var w = S.w; if (!S.tab) S.tab = 'flota';
+  var w = S.w; if (!S.tab || (w.rankingWylaczony && S.tab === 'ranking')) S.tab = 'flota';
   powiadomZgloszenia(w);
-  var h = pasek(w.nazwa, [[w.bursztyn, 'bursztyn', 'amb'], [w.porty + '/' + w.ilePortow, 'porty'], [w.rankingUkryty ? '?' : w.miejsce + '.', 'miejsce']]) + '<div class="wrap">';
+  var h = pasek(w.nazwa, [[w.bursztyn, 'bursztyn', 'amb'], [w.porty + '/' + w.ilePortow, 'porty']].concat(w.rankingWylaczony ? [] : [[w.rankingUkryty ? '?' : w.miejsce + '.', 'miejsce']])) + '<div class="wrap">';
   if (w.test) h += panelTestowy(w);
   if (w.zamkniete) h += '<div class="banner bad">' + esc(w.zamkniete) + '</div>';
   else if (w.faza === 'ostatnie') h += '<div class="banner">Ostatnie 10 minut: zostaje jeden atak.</div>';
@@ -241,22 +242,21 @@ function rysujGildie(){
   if (S.tab === 'punkty') h += gPunkty(w);
   if (S.tab === 'dziennik') h += gDziennik(w);
   if (S.tab === 'ranking') h += gRanking(w);
-  h += '</div>' + zakladki([['flota', 'Flota'], ['atak', 'Atak'], ['punkty', 'Punkty'], ['dziennik', 'Dziennik'], ['ranking', 'Ranking']]);
+  h += '</div>' + zakladki([['flota', 'Flota'], ['atak', 'Atak'], ['punkty', 'Punkty'], ['dziennik', 'Dziennik']].concat(w.rankingWylaczony ? [] : [['ranking', 'Ranking']]));
   $app.innerHTML = h; podepnijZakladki(); podepnijWyloguj();
   var i, b = $app.querySelectorAll('[data-kup]');
   for (i = 0; i < b.length; i++) b[i].onclick = function(){ var d = this.dataset; potwierdz('Kupić: ' + d.nazwa + '?', 'Za <b>' + esc(d.cena) + '</b> bursztynów.', 'Kupuję', { typ:'kup', co: d.kup }); };
   b = $app.querySelectorAll('[data-sprzedaj]');
   for (i = 0; i < b.length; i++) b[i].onclick = function(){ var d = this.dataset; potwierdz('Sprzedać: ' + d.nazwa + '?', 'Dostaniecie <b>' + esc(d.zwrot) + '</b> bursztynów.', 'Sprzedaję', { typ:'sprzedaj', co: d.sprzedaj }); };
   b = $app.querySelectorAll('[data-atak]');
-  for (i = 0; i < b.length; i++) b[i].onclick = function(){ var d = this.dataset; potwierdz('Atak: ' + d.nazwa + '?', esc(d.opis), 'Atakujemy', { typ:'atak', taktyka: d.atak }); };
+  for (i = 0; i < b.length; i++) b[i].onclick = function(){ atakOkno(this.dataset); };
   var tb = $app.querySelectorAll('[data-test]');
   for (i = 0; i < tb.length; i++) tb[i].onclick = function(){ var d = this.dataset.test;
     if (d === 'bursztyn') wykonaj({ typ:'test_bursztyn', ile: 200 });
     if (d === 'port') wykonaj({ typ:'test_port', p: Number(document.getElementById('tPort').value) });
     if (d === 'zywy') wykonaj({ typ:'test_zywy', punkt: Number(document.getElementById('tZywy').value), ile: 40 });
     if (d === 'reset') potwierdz('Konto testowe od nowa?', 'Wszystko wróci do startu: 500 bursztynu i jedna sznika.', 'Od nowa', { typ:'test_reset' }); };
-  var zg = document.getElementById('zGraj'); if (zg) zg.onclick = function(){ if (pam('bm_zest') === '1' && !S.w.test) zestawStart(); else zestawInstrukcja(); };   // na koncie testowym objaśnienie zawsze
-  var zj = document.getElementById('zJak'); if (zj) zj.onclick = zestawInstrukcja;
+  var zj = document.getElementById('zJak'); if (zj) zj.onclick = function(){ zestawInstrukcja(null); };
   var zt = document.getElementById('zTren'); if (zt) zt.onclick = zestawTrening;
   if (S.w.zestawy && S.w.zestawy.gra && !$war.innerHTML){ S.zBlok = S.w.zestawy.gra.blokadaMs ? Date.now() + S.w.zestawy.gra.blokadaMs : 0; S.zWyb = S.zWyb || []; zestawEkran(); }   // gra trwa (np. po odświeżeniu strony)
   var zs = $app.querySelector('.zasady'); if (zs) zs.ontoggle = function(){ pam('bm_zasady', this.open ? '1' : '0'); };
@@ -320,16 +320,25 @@ function panelTestowy(w){
     '<div class="field"><select id="tZywy" aria-label="Punkt żywy">' + (w.zywePunkty || []).map(function(n, i){ return '<option value="' + i + '">' + esc(n) + '</option>'; }).join('') + '</select><button class="btn ghost mini" data-test="zywy">Zalicz za 40</button></div>' +
     '<p class="small">Punkty martwe sprawdzają się tu same: zgodny tekst albo samo zdjęcie zalicza.</p></div>';
 }
-function kartaZestawow(w){
-  var z = w.zestawy; if (!z || !z.premia) return '';
-  if (w.premia) return '<div class="banner ok">Premia z zestawów: <b>+' + w.premia + '</b> do następnego ataku.</div>';
-  if (z.powod && /^Od /.test(z.powod)) return '';                 // przed 3. portem nic nie pokazujemy
-  if (z.powod) return '';
-  return '<div class="card zest"><div class="row"><span class="name">Zestawy: premia do ataku</span><span class="pill amb">+' + z.premia + ' za zestaw</span></div>' +
-    '<p class="sub">' + z.czas + ' sekund, najwyżej +' + (z.premia * z.max) + '. Jeśli nie wyjdzie, nic nie tracicie.</p>' +
-    '<div class="btns"><button class="btn amber" id="zGraj">Gramy</button><button class="btn ghost" id="zJak">Jak grać?</button><button class="btn ghost" id="zTren">Trening</button></div></div>';
+function zestawyDostepne(w){ var z = w.zestawy; return !!(z && z.premia && !z.powod); }
+function liniaZestawow(w){
+  if (!zestawyDostepne(w)) return '';
+  var z = w.zestawy;
+  return '<p class="small zlinia">Przy ataku możecie najpierw zagrać w <b>zestawy</b>: +' + z.premia + ' za każdy, najwyżej +' + (z.premia * z.max) + '. <button class="lnk" id="zJak">Jak grać?</button> <button class="lnk" id="zTren">Trening</button></p>';
 }
-function zestawInstrukcja(){
+// Okno ataku: od 3. portu wybór „zestawy, potem atak” albo „atak od razu”.
+function atakOkno(d){
+  var w = S.w, zest = zestawyDostepne(w), z = w.zestawy;
+  $war.innerHTML = '<div class="modal" role="dialog" aria-modal="true"><div class="box"><h2>Atak: ' + esc(d.nazwa) + '</h2><p>' + esc(d.opis) + '</p>' +
+    (zest ? '<div class="zpyt"><b>Najpierw zestawy?</b> ' + z.czas + ' sekund, każdy zestaw +' + z.premia + ' do tego ataku (najwyżej +' + (z.premia * z.max) + '). Nie wyjdzie? Atak i tak się odbędzie.</div>' : '') +
+    '<div class="btns col">' + (zest ? '<button class="btn amber" id="aZest">Gramy w zestawy, potem atak</button><button class="btn" id="aTak">Atakujemy od razu</button>' : '<button class="btn amber" id="aTak">Atakujemy</button>') +
+    '<button class="btn ghost" id="aNie">Anuluj</button></div></div></div>';
+  document.getElementById('aTak').onclick = function(){ wykonaj({ typ:'atak', taktyka: d.atak }); };
+  document.getElementById('aNie').onclick = zamknij;
+  var az = document.getElementById('aZest');
+  if (az) az.onclick = function(){ if (pam('bm_zest') === '1' && !w.test) zestawStart(d.atak); else zestawInstrukcja(d.atak); };   // na koncie testowym objaśnienie zawsze
+}
+function zestawInstrukcja(taktyka){
   var p = function(a, b, c){ return '<div class="zprz">' + kartaZ(a, 'mini') + kartaZ(b, 'mini') + kartaZ(c, 'mini') + '</div>'; };
   var K = function(k, s, l){ return { kolor: k, ksztalt: s, liczba: l }; };
   $war.innerHTML = '<div class="modal" role="dialog" aria-modal="true"><div class="box zinstr"><h2>Jak grać w zestawy</h2>' +
@@ -339,9 +348,10 @@ function zestawInstrukcja(){
     '<div class="zprzyklad ok">' + p(K(0, 0, 1), K(1, 1, 2), K(2, 2, 3)) + '<p>✓ Wszystko inne: kolory, rysunki i liczby.</p></div>' +
     '<div class="zprzyklad zle">' + p(K(1, 0, 2), K(1, 1, 2), K(0, 2, 2)) + '<p>✗ Dwa niebieskie i jeden bursztynowy. Kolor nie jest ani taki sam, ani cały inny.</p></div>' +
     '<p>Klikacie 3 karty. <b>Znaleziony zestaw znika, a na jego miejsce wchodzą nowe karty.</b> Na planszy zawsze jest co najmniej jeden zestaw. Macie <b>' + (S.w.zestawy ? S.w.zestawy.czas : 60) + ' sekund</b>, zła trójka to ' + (S.w.zestawy ? S.w.zestawy.kara : 3) + ' sekundy przerwy.</p>' +
-    '<div class="btns"><button class="btn amber" id="zSerio">Gramy na serio</button><button class="btn ghost" id="zTr2">Trening</button><button class="btn ghost" id="zZam">Zamknij</button></div></div></div>';
+    '<p>Po czasie albo po „Kończymy” od razu atakujecie, z premią <b>+' + (S.w.zestawy ? S.w.zestawy.premia : 2) + ' za każdy zestaw</b>.</p>' +
+    '<div class="btns">' + (taktyka ? '<button class="btn amber" id="zSerio">Gramy na serio</button>' : '') + '<button class="btn ghost" id="zTr2">Trening</button><button class="btn ghost" id="zZam">Zamknij</button></div></div></div>';
   pam('bm_zest', '1');
-  document.getElementById('zSerio').onclick = zestawStart;
+  var zs = document.getElementById('zSerio'); if (zs) zs.onclick = function(){ zestawStart(taktyka); };
   document.getElementById('zTr2').onclick = zestawTrening;
   document.getElementById('zZam').onclick = zamknij;
 }
@@ -353,8 +363,8 @@ function zestawApi(akcja, cb){
     cb && cb(o.komunikat || {}); })
     .catch(function(){ S.zajete = false; toast('Brak połączenia. Spróbujcie jeszcze raz.', true); });
 }
-function zestawStart(){
-  zestawApi({ typ:'zestaw_start' }, function(k){ if (!k.ok){ zamknij(); toast(k.tekst, true); rysuj(); return; } S.zWyb = []; zestawEkran(); });
+function zestawStart(taktyka){
+  zestawApi({ typ:'zestaw_start', taktyka: taktyka }, function(k){ if (!k.ok){ zamknij(); toast(k.tekst, true); rysuj(); return; } S.zWyb = []; zestawEkran(); });
 }
 function zestawTrening(){
   // trening w całości w telefonie: bez punktów, bez zapisu na serwerze
@@ -412,7 +422,7 @@ function zKlik(i){
   zMig(t, 'czeka');
   zestawApi({ typ:'zestaw_wybor', karty: t }, function(k){
     var z = k.zestaw || {};
-    if (z.koniec) return zWynik(z.koniec);
+    if (z.koniec) return zWynik(z.koniec, k);
     if (z.zly){ zestawEkran(); zMig(t, 'zly'); return; }
     if (z.dobry){ zestawEkran(); zMig(t, 'dobry'); try{ navigator.vibrate && navigator.vibrate(60); }catch(e){} return; }   // na tych miejscach są już nowe karty
     zestawEkran();
@@ -437,21 +447,20 @@ function zKoniec(){
   if (S.zTren){ var n = S.zTren.znal.length; S.zTren = null; S.zBlok = 0;
     $war.innerHTML = '<div class="modal"><div class="box"><h2>Koniec treningu</h2><p>Znaleźliście ' + n + (n === 1 ? ' zestaw' : n > 1 && n < 5 ? ' zestawy' : ' zestawów') + '. W treningu nie ma punktów.</p><div class="btns"><button class="btn" id="zOk">OK</button></div></div></div>';
     document.getElementById('zOk').onclick = function(){ zamknij(); rysuj(); }; return; }
-  zestawApi({ typ:'zestaw_koniec' }, function(k){ zWynik((k.zestaw && k.zestaw.koniec) || { ile: 0, premia: S.w.premia || 0 }); });
+  zestawApi({ typ:'zestaw_koniec' }, function(k){ zWynik((k.zestaw && k.zestaw.koniec) || { ile: 0, premia: 0 }, k); });
 }
-function zWynik(w){
+function zWynik(w, k){
   clearInterval(S.zTimer); S.zKoniecCzasu = null; S.zBlok = 0; S.zWyb = [];
-  $war.innerHTML = '<div class="modal"><div class="box ' + (w.premia ? 'win' : '') + '"><h2>' + (w.premia ? 'Premia +' + w.premia : 'Tym razem bez premii') + '</h2>' +
-    '<p>' + (w.ile ? 'Znaleźliście ' + w.ile + (w.ile === 1 ? ' zestaw' : w.ile < 5 ? ' zestawy' : ' zestawów') + '. ' : '') + (w.premia ? 'Premia doda się do waszego następnego ataku.' : 'Nic nie tracicie. Możecie atakować normalnie.') + '</p>' +
-    '<div class="btns"><button class="btn amber" id="zOk">Do ataku</button></div></div></div>';
-  document.getElementById('zOk').onclick = function(){ zamknij(); S.tab = 'atak'; rysuj(); };
+  $war.innerHTML = '<div class="modal"><div class="box ' + (w.premia ? 'win' : '') + '"><h2>' + (w.premia ? 'Premia +' + w.premia : 'Bez premii') + '</h2>' +
+    '<p>' + (w.ile ? 'Znaleźliście ' + w.ile + (w.ile === 1 ? ' zestaw' : w.ile < 5 ? ' zestawy' : ' zestawów') + '. ' : 'Tym razem bez zestawu. ') + (k && k.atak ? 'Teraz atak!' : esc(k && k.tekst || '')) + '</p>' +
+    '<div class="btns"><button class="btn amber" id="zOk">' + (k && k.atak ? 'Rzucamy!' : 'OK') + '</button></div></div></div>';
+  document.getElementById('zOk').onclick = function(){ zamknij(); S.tab = 'atak'; rysuj(); if (k && k.atak) wynikAtaku(k); };
 }
 function gAtak(w){
   var h = '';
   if (!w.nastepny) h += '<div class="banner">Wszystkie porty zdobyte. Dopłynęliście do końca szlaku.</div>';
   else {
     var n = w.nastepny;
-    h += kartaZestawow(w);
     h += '<div class="card next"><p class="sub">Następny port, numer ' + n.nr + ' z ' + w.ilePortow + '</p><h2>' + esc(n.nazwa) + '</h2><p>Broni go: <b>' + esc(n.broni) + '</b>. ' + (n.lup ? 'Łup: <b>' + n.lup + '</b>.' : 'To ostatni port, bez łupu.') + '</p>' +
       (n.nieudane ? '<p class="why">Wasze nieudane ataki na ten port: ' + n.nieudane + '. Obrona jest wyższa o ' + n.nieudane + '.</p>' : '') + '</div>';
     var krotko = { natarcie:'Natarcie', ostrzal:'Ostrzał', zaskoczenie:'Zaskocz.' };
@@ -468,6 +477,7 @@ function gAtak(w){
       var opis = t.statNazwa + ' ' + t.stat + ' przeciw obronie ' + t.obrona + '. Szansa ' + t.szansa + '%. Jeśli się nie uda' + (t.kosztPorazki ? ', zapłacicie ' + t.kosztPorazki + ' bursztynów' : ', nic nie zapłacicie') + ', a obrona portu wzrośnie o 1.';
       h += '<button class="btn amber" data-atak="' + t.id + '" data-nazwa="' + esc(n.nazwa + ', ' + t.nazwa) + '" data-opis="' + esc(opis) + '"' + (t.powod ? ' disabled' : '') + '>' + esc(t.nazwa) + ' · ' + t.szansa + '%</button>';
     });
+    h += '</div>' + liniaZestawow(w) + '<div>';
     var powod = (w.taktyki.filter(function(t){ return t.obrona != null && t.powod; })[0] || {}).powod;
     h += '</div>' + (powod ? '<p class="why">' + esc(powod) + '</p>' : '');
   }

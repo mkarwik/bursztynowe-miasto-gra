@@ -117,9 +117,10 @@ function wykonaj(g, kto, a) {
   if (w.ok) { stany[g] = w.st; zapiszStan(); }
   let opis = opisAkcji(a);
   if (a.typ === 'atak' && portPrzed) opis = 'Atak: ' + portPrzed.nazwa + ', ' + (E.TAKTYKI.find(x => x.id === a.taktyka) || { nazwa: '?' }).nazwa;
+  if (w.kosci && a.typ !== 'atak' && portPrzed) opis = 'Atak po zestawach: ' + portPrzed.nazwa;
   // pojedyncze kliknięcia w zestawach nie zaśmiecają dziennika; zapisuje się start i wynik
   if (!(a.typ === 'zestaw_wybor' && !w.zestawKoniec) && !(a.typ === 'zestaw_koniec' && !w.ok)) wpis(g, kto, opis, w, a);
-  return { ok: w.ok && !w.bledna, tekst: w.msg, kosci: w.kosci || null, wygrana: w.wygrana, atak: a.typ === 'atak' && !!w.kosci,
+  return { ok: w.ok && !w.bledna, tekst: w.msg, kosci: w.kosci || null, wygrana: w.wygrana, atak: !!w.kosci,
     zestaw: a.typ.startsWith('zestaw') ? { dobry: !!w.zestawDobry, zly: !!w.zestawZly, nowe: w.zestawNowe || null, koniec: w.zestawKoniec || null } : undefined };
 }
 
@@ -225,7 +226,7 @@ function testAkcja(a) {
   else return { blad: 'Na koncie testowym tego nie ma.' };
   if (w.ok) { test = w.st; testZapisz(); }
   if (!(a.typ === 'zestaw_wybor' && !w.zestawKoniec)) { testDz.push({ czas: t.czas.slice(0, 5), opis: opisAkcji(a), wynik: w.msg, ok: w.ok }); if (testDz.length > 30) testDz.shift(); }
-  return { ok: w.ok && !w.bledna, tekst: w.msg, kosci: w.kosci || null, wygrana: w.wygrana, atak: a.typ === 'atak' && !!w.kosci,
+  return { ok: w.ok && !w.bledna, tekst: w.msg, kosci: w.kosci || null, wygrana: w.wygrana, atak: !!w.kosci,
     zestaw: a.typ.startsWith('zestaw') ? { dobry: !!w.zestawDobry, zly: !!w.zestawZly, nowe: w.zestawNowe || null, koniec: w.zestawKoniec || null } : undefined };
 }
 function testWidok() {

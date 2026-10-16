@@ -150,8 +150,13 @@ test('ranking: porty, potem zdobyty bursztyn, remis', () => {
   assert.equal(r[0].i, 5); assert.equal(r[1].i, 3); assert.equal(r[2].i, 7); assert.equal(r[3].miejsce, 4); assert.equal(r[9].miejsce, 4);
 });
 
-test('ranking ukryty przez ostatnie 30 minut', () => {
-  const cfg = kopia(cfg0); cfg.ustawienia.pilnuj_godzin = true; const stany = cfg.gildie.map(() => E.nowyStan(cfg)); stany[2].p = 3;
+test('ranking: domyślnie tylko dla kadry', () => {
+  const cfg = kopia(cfg0); const stany = cfg.gildie.map(() => E.nowyStan(cfg));
+  const w = E.widokGildii(cfg, stany, 0, 600); assert.equal(w.rankingUkryty, true); assert.equal(w.rankingWylaczony, true); assert.equal(w.ranking.length, 0); assert.equal(w.miejsce, null);
+});
+
+test('ranking dla gildii (gdy włączony) ukryty przez ostatnie 30 minut', () => {
+  const cfg = kopia(cfg0); cfg.ustawienia.pilnuj_godzin = true; cfg.ustawienia.ranking_dla_gildii = true; const stany = cfg.gildie.map(() => E.nowyStan(cfg)); stany[2].p = 3;
   let w = E.widokGildii(cfg, stany, 0, 10 * 60 + 49); assert.equal(w.rankingUkryty, false); assert.equal(w.ranking.length, 10); assert.equal(w.miejsce, 2); assert.equal(w.rankingDo, '10:50');
   w = E.widokGildii(cfg, stany, 0, 10 * 60 + 50); assert.equal(w.rankingUkryty, true); assert.equal(w.ranking.length, 0); assert.equal(w.miejsce, null);
   w = E.widokGildii(cfg, stany, 0, 12 * 60); assert.equal(w.rankingUkryty, true, 'po końcu gry nadal ukryty');

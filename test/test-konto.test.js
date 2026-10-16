@@ -18,9 +18,9 @@ test('konto testowe', async () => {
     let t = await api('test-zmien-mnie'); assert.equal(t.widok.test, true); assert.equal(t.widok.bursztyn, 500); assert.equal(t.widok.nazwa, 'Konto testowe');
     t = await api('test-zmien-mnie', { typ: 'kup', co: 'koga' }); assert.ok(t.komunikat.ok, t.komunikat.tekst);
     t = await api('test-zmien-mnie', { typ: 'test_bursztyn', ile: 200 }); assert.equal(t.widok.bursztyn, 500 - 160 + 200);
-    t = await api('test-zmien-mnie', { typ: 'test_port', p: 4 }); assert.equal(t.widok.porty, 4);
-    t = await api('test-zmien-mnie', { typ: 'zestaw_start' }); assert.ok(t.komunikat.ok); assert.equal(t.widok.zestawy.gra.karty.length, 9);
-    t = await api('test-zmien-mnie', { typ: 'zestaw_koniec' }); assert.ok(t.komunikat.ok);
+    t = await api('test-zmien-mnie', { typ: 'test_port', p: 4 }); assert.equal(t.widok.porty, 4); await api('test-zmien-mnie', { typ: 'test_bursztyn', ile: 200 });
+    t = await api('test-zmien-mnie', { typ: 'zestaw_start', taktyka: 'zaskoczenie' }); assert.ok(t.komunikat.ok, t.komunikat.tekst); assert.equal(t.widok.zestawy.gra.karty.length, 9);
+    t = await api('test-zmien-mnie', { typ: 'zestaw_koniec' }); assert.ok(t.komunikat.ok); assert.ok(t.komunikat.atak, 'po zestawach atak');
     t = await api('test-zmien-mnie', { typ: 'test_zywy', punkt: 1, ile: 40 }); assert.ok(t.komunikat.ok); assert.equal(t.widok.zywe[1].wizyty, 1);
     t = await api('test-zmien-mnie', { typ: 'zdjecie', rodzaj: 'martwy', punkt: 0, tekst: 'odp1' }); assert.equal(t.widok.martwe[0].zaliczony, true);
     t = await api('test-zmien-mnie', { typ: 'zdjecie', rodzaj: 'martwy', punkt: 1, foto: 'data:image/png;base64,iVBORw0KGgo=' }); assert.equal(t.widok.martwe[1].zaliczony, true);

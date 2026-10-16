@@ -69,7 +69,14 @@ function zestawPowod(cfg, st, f) {
   if (f === 'koniec') return 'Gra już się skończyła.';
   if (st.p >= cfg.porty.length) return 'Wszystkie porty zdobyte.';
   if (st.p + 1 < z.od) return 'Od ' + z.od + '. portu.';
-  if ((st.premia || 0) > 0) return 'Macie premię +' + st.premia + '. Wykorzystajcie ją w ataku.';
+  return '';
+}
+// Dlaczego atak tą taktyką nie jest teraz możliwy ('' gdy jest).
+function atakPowod(cfg, st, t, f) {
+  if (st.p >= cfg.porty.length) return 'Wszystkie porty są już zdobyte.';
+  if (obronaPortu(cfg, st, t) == null) return 'Tą taktyką nie da się zdobyć portu ' + cfg.porty[st.p].nazwa + '.';
+  if (st.b < 0) return 'Skarbiec jest na minusie. Najpierw odróbcie dług na punktach.';
+  if (f === 'ostatnie' && st.late >= 1) return 'W ostatnich 10 minutach wolno zaatakować tylko raz.';
   return '';
 }
 function zestawWynik(cfg, st) {
@@ -79,16 +86,27 @@ function zestawWynik(cfg, st) {
 }
 function zestawAkcja(cfg, st, a, ctx, nie, tak) {
   const z = ZU(cfg.ustawienia), ms = ctx.ms != null ? ctx.ms : Date.now(), f = faza(cfg, ctx.min);
-  const koniecTekst = w => (w.ile ? 'Znaleźliście ' + w.ile + (w.ile === 1 ? ' zestaw' : w.ile < 5 ? ' zestawy' : ' zestawów') + '. Premia do następnego ataku: +' + w.premia + '.' : 'Tym razem bez zestawu. Nic nie tracicie.');
+  const koniecTekst = w => (w.ile ? 'Zestawy: ' + w.ile + ', premia +' + w.premia + '.' : 'Zestawy: tym razem bez premii.');
   if (a.typ === 'zestaw_start') {
     if (st.zestaw) return nie('Gra w zestawy już trwa.');
     const powod = zestawPowod(cfg, st, f); if (powod) return nie(powod);
-    st.zestaw = { karty: Z.nowyUklad(ctx.los || Math.random, 9, 3), start: ms, blokadaDo: 0, znal: [] };
+    // zestawy grają się przy ataku: najpierw sprawdzamy, czy ten atak w ogóle jest możliwy
+    const t = TAKTYKI.findIndex(x => x.id === a.taktyka);
+    if (t < 0) return nie('Nie wybrano taktyki.');
+    const ap = atakPowod(cfg, st, t, f); if (ap) return nie(ap);
+    st.zestaw = { karty: Z.nowyUklad(ctx.los || Math.random, 9, 3, 5), start: ms, blokadaDo: 0, znal: [], taktyka: t };
     return tak('Zestawy: start.', 0);
   }
   if (!st.zestaw) return nie('Gra w zestawy nie trwa.');
   const poCzasie = ms > st.zestaw.start + z.czas + 1500;
-  if (a.typ === 'zestaw_koniec' || poCzasie) { const w = zestawWynik(cfg, st); return tak(koniecTekst(w), 0, { zestawKoniec: w }); }
+  if (a.typ === 'zestaw_koniec' || poCzasie) {
+    // koniec zestawów = od razu atak wybraną taktyką, z premią
+    const taktyka = st.zestaw.taktyka, w = zestawWynik(cfg, st);
+    if (taktyka == null) return tak(koniecTekst(w), 0, { zestawKoniec: w });
+    const r = akcja(cfg, st, { typ: 'atak', taktyka: TAKTYKI[taktyka].id }, ctx);
+    if (!r.ok) { st.premia = 0; return tak(koniecTekst(w) + ' Atak się nie odbył: ' + r.msg, 0, { zestawKoniec: w }); }
+    return Object.assign({}, r, { msg: r.msg, zestawKoniec: w });
+  }
   // wybór trzech kart
   if (ms < st.zestaw.blokadaDo) return nie('Chwila przerwy po pomyłce.');
   const t = Array.isArray(a.karty) ? a.karty.map(Number) : [];
@@ -358,11 +376,12 @@ function widokGildii(cfg, stany, i, min) {
   // Ranking znika gildiom na ostatnie minuty gry (działa tylko przy włączonym pilnowaniu godzin).
   const koniec = minuty(u.koniec_gry);
   const ukryjOd = u.pilnuj_godzin && u.ukryj_ranking_min > 0 && koniec != null ? koniec - u.ukryj_ranking_min : null;
-  const ukryty = ukryjOd != null && min >= ukryjOd;
+  // ranking widzi tylko kadra, chyba że w ustawieniach włączono ranking_dla_gildii
+  const ukryty = !u.ranking_dla_gildii || (ukryjOd != null && min >= ukryjOd);
   return {
     rola: 'gildia', nazwa: cfg.gildie[i].nazwa, faza: f, zamkniete,
     bursztyn: st.b, zdobyty: st.z, porty: st.p, ilePortow: cfg.porty.length,
-    miejsce: ukryty ? null : rank.find(x => x.i === i).miejsce, rankingUkryty: ukryty, rankingDo: ukryjOd != null && !ukryty ? hhmm(ukryjOd) : null,
+    miejsce: ukryty ? null : rank.find(x => x.i === i).miejsce, rankingUkryty: ukryty, rankingWylaczony: !u.ranking_dla_gildii, rankingDo: ukryjOd != null && !ukryty ? hhmm(ukryjOd) : null,
     sila: s.sila, zasieg: s.zasieg, zwrot: s.zwrot, naprawa: s.naprawa, ileStatkow: s.ile, limit: u.limit_statkow,
     portBonus: u.port_bonus,
     statki: cfg.statki.map(x => {

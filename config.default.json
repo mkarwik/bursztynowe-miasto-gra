@@ -20,6 +20,7 @@
   "zywy_wizyty": 2,
   "zywy_przerwa_min": 0,
   "zywy_inny_punkt": true,
+  "ranking_dla_gildii": false,
   "ukryj_ranking_min": 30,
   "martwy_auto": false,
   "zestawy_od_portu": 3,
