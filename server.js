@@ -380,7 +380,7 @@ function api(body) {
 
 // ---------- analiza AI (opcjonalna, gdy jest klucz OpenAI albo Anthropic) ----------
 const AI_SYSTEM = 'Jesteś asystentem kadry harcerskiej gry miejskiej „Bursztynowe Miasto” (10 gildii po 4 osoby, Gdańsk, ok. 2,5 h). ' +
-  'Gildie zarabiają bursztyn na punktach żywych (ocena punktowego 0–55), martwych (pytanie, 2 próby) i znajdźkach (kod albo zdjęcie sprawdzane przez kadrę), kupują statki i budowle, atakują po kolei 10 portów. ' +
+  'Gildie zarabiają bursztyn na punktach żywych (ocena punktowego 0–55), martwych (zdjęcie i tekst, sprawdzane ręcznie przez kadrę) i znajdźkach (kod), kupują statki i budowle, atakują po kolei 10 portów; od 3. portu przed atakiem mogą zagrać w Seta (minigra, do +6 do ataku). ' +
   'Ranking: liczba portów, przy remisie bursztyn zdobyty w całej grze. Dostajesz migawkę: reguły nadzoru, dane gildii, punkty i ostatnie wpisy dziennika. ' +
   'Napisz po polsku raport dla kadry w trzech częściach, każda z nagłówkiem wielkimi literami w osobnym wierszu:\n' +
   'STAN GRY: 2–3 zdania, jak idzie całość (tempo względem symulacji, ile zostało do końca, czy walka o czołówkę jest wyrównana).\n' +
