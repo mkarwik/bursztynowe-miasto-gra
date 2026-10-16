@@ -441,7 +441,8 @@ function zPodmiana(stare, t){
   var nr = S.zPodNr = (S.zPodNr || 0) + 1;
   S.zPauza = Date.now() + 700;
   zestawEkran({ karty: stare, idx: t, kl: 'dobry' });
-  setTimeout(function(){ if (S.zPodNr === nr && zGra() && $war.querySelector('.zgra')) zestawEkran({ idx: t, kl: 'nowa' }); }, 700);
+  setTimeout(function(){ if (S.zPodNr === nr && zGra() && $war.querySelector('.zgra')) zestawEkran({ idx: t, kl: 'nowa' });
+    setTimeout(function(){ var e = $war.querySelectorAll('.zbtn.nowa'); for (var i = 0; i < e.length; i++) e[i].classList.remove('nowa'); }, 800); }, 700);   // ramka nowych kart tylko na chwilę
 }
 function zMig(t, kl){ t.forEach(function(i){ var e = $war.querySelector('[data-zk="' + i + '"]'); if (e){ e.classList.remove('wyb'); e.classList.add(kl); } }); }
 function zZegar(){
