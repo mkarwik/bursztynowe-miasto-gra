@@ -16,11 +16,15 @@ Bez zewnętrznych bibliotek. Wymaga tylko Node 20 lub nowszego. Dane leżą w pl
 
 Opcjonalne zmienne: `PORT` (domyślnie 3000), `DATA_DIR` (domyślnie /data w kontenerze), `STREFA` (domyślnie Europe/Warsaw).
 
-### Znajdźki ze zdjęciem
+### Punkty martwe i znajdźki
 
-Gildia może potwierdzić znajdźkę zdjęciem, opisem albo jednym i drugim (zakładka Punkty). Telefon zmniejsza zdjęcie do ok. 1280 px przed wysłaniem. Kadra sprawdza zgłoszenia w zakładce **Zdjęcia**: „Zalicz” dolicza nagrodę za znajdźkę (z Kantorem większą), „Odrzuć” wysyła gildii powód. Gildia dostaje powiadomienie w ciągu kilku sekund. Kody z kartek działają dalej obok.
+Znajdźki zalicza się kodem z kartki (od razu). Punkt martwy: gildia wysyła odpowiedź tekstem, zdjęciem albo jednym i drugim, a kadra sprawdza zgłoszenie w zakładce **Zgłoszenia** (widzi pytanie i poprawną odpowiedź). „Zalicz” dolicza nagrodę z bonusami, „Odrzuć” zużywa jedną z prób i wysyła gildii powód. Gildia dostaje powiadomienie w ciągu kilku sekund. Ustawienie `martwy_auto` na „tak” zalicza od razu tekst zgodny z odpowiedzią (mniej pracy dla kadry). Zdjęcia leżą w `/data/zdjecia`, kadra usuwa je jednym przyciskiem w zakładce Gra. Nadzór ostrzega, gdy zgłoszenie czeka dłużej niż 4 minuty.
 
-Ustawienia: `zdjecia` (włącza zgłoszenia), `zdjecia_limit` (ile znajdziek ze zdjęć może mieć jedna gildia, 0 bez limitu). Jedna gildia może mieć naraz najwyżej 3 zgłoszenia czekające. Zdjęcia leżą w `/data/zdjecia`, kadra usuwa je jednym przyciskiem w zakładce Gra. Nadzór ostrzega, gdy zgłoszenie czeka dłużej niż 4 minuty.
+### Zestawy (premia do ataku)
+
+Minigra na wzór SET. Od portu `zestawy_od_portu` (3) gildia może przed atakiem zagrać: 9 kart, w układzie zawsze dokładnie 4 zestawy, czas `zestawy_czas_s` (60 s), zła trójka to `zestawy_kara_s` (3 s) blokady. Każdy zestaw daje `zestawy_premia` (+2) do następnego ataku, liczy się najwyżej `zestawy_max` (3) zestawy. Czas, blokadę i premię liczy serwer. Premia działa na jeden atak; przegrana gra nic nie kosztuje. W aplikacji jest objaśnienie z przykładami i trening bez punktów. Obrona portów 3–10 jest wyższa o 4, żeby premia nie rozregulowała balansu.
+
+Przycisk **„Przywróć domyślny cennik”** (zakładka Cennik) wczytuje statki, budowle, porty i liczby z nowej wersji aplikacji, zostawiając gildie, hasła, punkty, kody i godziny.
 
 ### Nadzór i analiza AI
 

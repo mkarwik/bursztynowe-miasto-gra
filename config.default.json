@@ -20,8 +20,12 @@
   "zywy_przerwa_min": 0,
   "zywy_inny_punkt": true,
   "ukryj_ranking_min": 30,
-  "zdjecia": false,
-  "zdjecia_limit": 10
+  "martwy_auto": false,
+  "zestawy_od_portu": 3,
+  "zestawy_czas_s": 60,
+  "zestawy_premia": 2,
+  "zestawy_max": 3,
+  "zestawy_kara_s": 3
  },
  "gildie": [
   {
@@ -172,63 +176,63 @@
    "broni": "Sztorm",
    "natarcie": 99,
    "ostrzal": 99,
-   "zaskoczenie": 11,
+   "zaskoczenie": 15,
    "lup": 15
   },
   {
    "nazwa": "Ryga",
    "broni": "Rabusie z Dźwiny",
-   "natarcie": 21,
-   "ostrzal": 15,
-   "zaskoczenie": 17,
+   "natarcie": 25,
+   "ostrzal": 19,
+   "zaskoczenie": 21,
    "lup": 15
   },
   {
    "nazwa": "Rewel",
    "broni": "Kra na Zatoce Fińskiej",
-   "natarcie": 22,
+   "natarcie": 26,
    "ostrzal": 99,
-   "zaskoczenie": 20,
+   "zaskoczenie": 24,
    "lup": 20
   },
   {
    "nazwa": "Visby",
    "broni": "Bracia Witalijscy",
-   "natarcie": 40,
-   "ostrzal": 28,
-   "zaskoczenie": 26,
+   "natarcie": 44,
+   "ostrzal": 32,
+   "zaskoczenie": 30,
    "lup": 25
   },
   {
    "nazwa": "Sztokholm",
    "broni": "Oblężenie miasta",
-   "natarcie": 48,
-   "ostrzal": 34,
-   "zaskoczenie": 24,
+   "natarcie": 52,
+   "ostrzal": 38,
+   "zaskoczenie": 28,
    "lup": 30
   },
   {
    "nazwa": "Kopenhaga",
    "broni": "Flota króla Waldemara",
-   "natarcie": 54,
-   "ostrzal": 40,
+   "natarcie": 58,
+   "ostrzal": 44,
    "zaskoczenie": 99,
    "lup": 35
   },
   {
    "nazwa": "Lubeka",
    "broni": "Najemnicy wrogiej gildii",
-   "natarcie": 74,
-   "ostrzal": 44,
-   "zaskoczenie": 30,
+   "natarcie": 78,
+   "ostrzal": 48,
+   "zaskoczenie": 34,
    "lup": 40
   },
   {
    "nazwa": "Londyn",
    "broni": "Klaus Störtebeker",
-   "natarcie": 92,
-   "ostrzal": 58,
-   "zaskoczenie": 33,
+   "natarcie": 96,
+   "ostrzal": 62,
+   "zaskoczenie": 37,
    "lup": 0
   }
  ],

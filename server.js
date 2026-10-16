@@ -103,18 +103,22 @@ function opisAkcji(a) {
   if (a.typ === 'znajdzka') return 'Znajdźka';
   if (a.typ === 'zywy') { const p = cfg.punkty_zywe[Number(a.punkt)]; return 'Punkt żywy' + (p ? ': ' + p.nazwa : ''); }
   if (a.typ === 'korekta') return 'Korekta kadry';
+  if (a.typ === 'zestaw_start') return 'Zestawy: start';
+  if (a.typ === 'zestaw_wybor' || a.typ === 'zestaw_koniec') return 'Zestawy: wynik';
   return 'Zgłoszenie';
 }
 
 function wykonaj(g, kto, a) {
   const t = teraz();
   const portPrzed = cfg.porty[stany[g].p];
-  const w = E.akcja(cfg, stany[g], a, { min: t.min, kosc });
+  const w = E.akcja(cfg, stany[g], a, { min: t.min, kosc, ms: Date.now() });
   if (w.ok) { stany[g] = w.st; zapiszStan(); }
   let opis = opisAkcji(a);
   if (a.typ === 'atak' && portPrzed) opis = 'Atak: ' + portPrzed.nazwa + ', ' + (E.TAKTYKI.find(x => x.id === a.taktyka) || { nazwa: '?' }).nazwa;
-  wpis(g, kto, opis, w, a);
-  return { ok: w.ok && !w.bledna, tekst: w.msg, kosci: w.kosci || null, wygrana: w.wygrana, atak: a.typ === 'atak' && !!w.kosci };
+  // pojedyncze kliknięcia w zestawach nie zaśmiecają dziennika; zapisuje się start i wynik
+  if (!(a.typ === 'zestaw_wybor' && !w.zestawKoniec) && !(a.typ === 'zestaw_koniec' && !w.ok)) wpis(g, kto, opis, w, a);
+  return { ok: w.ok && !w.bledna, tekst: w.msg, kosci: w.kosci || null, wygrana: w.wygrana, atak: a.typ === 'atak' && !!w.kosci,
+    zestaw: a.typ.startsWith('zestaw') ? { dobry: !!w.zestawDobry, zly: !!w.zestawZly, juz: !!w.zestawJuz, koniec: w.zestawKoniec || null } : undefined };
 }
 
 function dziennikGildii(g, ile) {
@@ -131,8 +135,8 @@ function noweZgloszenie(g, a) {
   const u = cfg.ustawienia, f = E.faza(cfg, teraz().min), st = stany[g];
   if (f === 'przed') return { ok: false, tekst: 'Gra jeszcze się nie zaczęła.' };
   if (f === 'koniec') return { ok: false, tekst: 'Gra już się skończyła.' };
-  const rodzaj = a.rodzaj === 'martwy' ? 'martwy' : 'znajdzka';
-  if (rodzaj === 'znajdzka' && !u.zdjecia) return { ok: false, tekst: 'Znajdźki zalicza się kodem z kartki.' };
+  const rodzaj = 'martwy';
+  if (a.rodzaj !== 'martwy') return { ok: false, tekst: 'Znajdźki zalicza się kodem z kartki.' };
   const tekst = String(a.tekst || '').trim().slice(0, 300);
   const foto = typeof a.foto === 'string' ? a.foto : '';
   if (!tekst && !foto) return { ok: false, tekst: rodzaj === 'martwy' ? 'Wpiszcie odpowiedź albo dodajcie zdjęcie.' : 'Dodajcie zdjęcie albo opis.' };
@@ -145,9 +149,7 @@ function noweZgloszenie(g, a) {
     if ((st.mt[pkt] || 0) >= u.proby_martwy) return { ok: false, tekst: 'Wykorzystaliście już wszystkie próby na tym punkcie.' };
     if (czekaG.some(z => z.rodzaj === 'martwy' && z.pkt === pkt)) return { ok: false, tekst: 'Odpowiedź na ten punkt czeka już na sprawdzenie.' };
     // zgodny tekst: zalicza się od razu, bez kadry
-    if (tekst && E.norm(tekst) === E.norm(p.odpowiedz)) return wykonaj(g, 'gildia', { typ: 'martwy', punkt: pkt, odpowiedz: tekst });
-  } else {
-    if (u.zdjecia_limit > 0 && (st.zf || 0) + czekaG.filter(z => z.rodzaj !== 'martwy').length >= u.zdjecia_limit) return { ok: false, tekst: 'Macie już wszystkie znajdźki (' + u.zdjecia_limit + ').' };
+    if (u.martwy_auto && tekst && !foto && E.norm(tekst) === E.norm(p.odpowiedz)) return wykonaj(g, 'gildia', { typ: 'martwy', punkt: pkt, odpowiedz: tekst });
   }
   if (czekaG.length >= 5) return { ok: false, tekst: 'Macie już 5 zgłoszeń czekających na sprawdzenie. Poczekajcie chwilę na kadrę.' };
   const id = Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
@@ -220,6 +222,9 @@ const zglDlaKadry = () => zgloszenia.slice(-300).map(z => {
 function widok(r) {
   const t = teraz();
   if (r.rola === 'gildia') {
+    // gra w zestawy po czasie kończy się sama, nawet gdy telefon był zamknięty
+    const z = stany[r.i].zestaw;
+    if (z && Date.now() > z.start + (cfg.ustawienia.zestawy_czas_s || 60) * 1000 + 1500) wykonaj(r.i, 'gildia', { typ: 'zestaw_koniec' });
     const w = E.widokGildii(cfg, stany, r.i, t.min);
     w.dziennik = dziennikGildii(r.i, 15); w.teraz = t.czas.slice(0, 5); w.zgloszenia = zglDlaGildii(r.i);
     w.martwe.forEach(p => { p.czeka = zgloszenia.some(z => z.g === r.i && z.rodzaj === 'martwy' && z.pkt === p.nr && z.stan === 'czeka'); });
@@ -258,7 +263,7 @@ function api(body) {
   if (a && typeof a === 'object') {
     if (r.rola === 'gildia') {
       if (a.typ === 'zdjecie') komunikat = noweZgloszenie(r.i, a);
-      else if (!['kup', 'sprzedaj', 'atak', 'znajdzka'].includes(a.typ)) return { blad: 'Gildia nie może tego zgłosić.' };
+      else if (!['kup', 'sprzedaj', 'atak', 'znajdzka', 'zestaw_start', 'zestaw_wybor', 'zestaw_koniec'].includes(a.typ)) return { blad: 'Gildia nie może tego zgłosić.' };
       else komunikat = wykonaj(r.i, 'gildia', a);
     } else if (r.rola === 'punktowy') {
       if (a.typ !== 'zywy') return { blad: 'Punktowy może tylko zaliczać punkty żywe.' };
@@ -288,6 +293,15 @@ function api(body) {
           wpis(null, 'kadra', 'Zmiana cennika lub ustawień', { ok: true, msg: 'Zapisano.', delta: 0 });
           komunikat = { ok: true, tekst: 'Zapisano. Zmiany działają od razu.' };
         }
+      } else if (a.typ === 'domyslny_cennik') {
+        // statki, budowle, porty i liczby z nowej wersji aplikacji; gildie, hasła, punkty, kody i godziny zostają
+        const zost = ['haslo_punktowych', 'pilnuj_godzin', 'start_gry', 'ostatnie_10_min', 'koniec_gry'];
+        const nowy = JSON.parse(JSON.stringify(DOMYSLNA));
+        for (const k of zost) nowy.ustawienia[k] = cfg.ustawienia[k];
+        for (const k of ['gildie', 'punkty_martwe', 'punkty_zywe', 'znajdzki']) nowy[k] = cfg[k];
+        cfg = nowy; zapiszAtomowo(PLIK_KONFIG, JSON.stringify(cfg, null, 1)); dopasujStany(); zapiszStan();
+        wpis(null, 'kadra', 'Przywrócenie domyślnego cennika', { ok: true, msg: 'Statki, budowle, porty i liczby jak w nowej wersji.', delta: 0 });
+        komunikat = { ok: true, tekst: 'Cennik przywrócony. Gildie, hasła, punkty i godziny zostały bez zmian.' };
       } else if (a.typ === 'reset') {
         if (a.potwierdzenie !== 'RESET') komunikat = { ok: false, tekst: 'Wpiszcie słowo RESET, żeby wyzerować grę.' };
         else {

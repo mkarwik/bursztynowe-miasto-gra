@@ -8,6 +8,7 @@ const TAKTYKI = [
 ];
 const BUD_STAT = { zbrojownia: 'sila', kusznicy: 'zasieg', sternicy: 'zwrot' };
 const NIE_DA_SIE = 99;
+const Z = require('./zestawy');
 
 function minuty(hhmm) {
   const m = /^(\d{1,2}):(\d{2})$/.exec(String(hhmm || '').trim());
@@ -26,7 +27,7 @@ function nowyStan(cfg) {
   const start = cfg.ustawienia.start_bursztyn;
   // b = bursztyn w skarbcu, z = zdobyty w całej grze, p = zdobyte porty, fail = nieudane ataki na następny port,
   // late = ataki w ostatnich 10 minutach, md/mt = punkty martwe zaliczone / zużyte próby, zn = znajdźki, zy = punkty żywe
-  return { b: start, z: start, p: 0, s, bud: {}, fail: 0, late: 0, md: {}, mt: {}, zn: {}, zy: {}, zt: {}, zf: 0 };
+  return { b: start, z: start, p: 0, s, bud: {}, fail: 0, late: 0, md: {}, mt: {}, zn: {}, zy: {}, zt: {}, zf: 0, premia: 0, zestaw: null };
 }
 
 function staty(cfg, st) {
@@ -56,6 +57,51 @@ function kiedyZnowu(cfg, st, i) {
 // Czy gildia musi zaliczyć inny punkt, zanim wróci na punkt żywy i (nie może przyjść dwa razy z rzędu).
 function musiInny(cfg, st, i) {
   return !!cfg.ustawienia.zywy_inny_punkt && (st.zy[i] || 0) > 0 && st.ost === 'z' + i;
+}
+
+// ---------- zestawy: minigra o premię do następnego ataku ----------
+const ZU = u => ({ od: u.zestawy_od_portu || 0, czas: (u.zestawy_czas_s || 60) * 1000, premia: u.zestawy_premia || 0, max: u.zestawy_max || 3, kara: (u.zestawy_kara_s || 0) * 1000 });
+// Czy gildia może teraz zagrać; zwraca powód odmowy albo ''.
+function zestawPowod(cfg, st, f) {
+  const z = ZU(cfg.ustawienia);
+  if (!z.od || !z.premia) return 'Zestawy są wyłączone.';
+  if (f === 'przed') return 'Gra jeszcze się nie zaczęła.';
+  if (f === 'koniec') return 'Gra już się skończyła.';
+  if (st.p >= cfg.porty.length) return 'Wszystkie porty zdobyte.';
+  if (st.p + 1 < z.od) return 'Od ' + z.od + '. portu.';
+  if ((st.premia || 0) > 0) return 'Macie premię +' + st.premia + '. Wykorzystajcie ją w ataku.';
+  return '';
+}
+function zestawWynik(cfg, st) {
+  const z = ZU(cfg.ustawienia), ile = st.zestaw.znal.length, premia = Math.min(ile, z.max) * z.premia;
+  st.premia = premia; st.zestaw = null;
+  return { ile, premia };
+}
+function zestawAkcja(cfg, st, a, ctx, nie, tak) {
+  const z = ZU(cfg.ustawienia), ms = ctx.ms != null ? ctx.ms : Date.now(), f = faza(cfg, ctx.min);
+  const koniecTekst = w => (w.ile ? 'Znaleźliście ' + w.ile + (w.ile === 1 ? ' zestaw' : w.ile < 5 ? ' zestawy' : ' zestawów') + '. Premia do następnego ataku: +' + w.premia + '.' : 'Tym razem bez zestawu. Nic nie tracicie.');
+  if (a.typ === 'zestaw_start') {
+    if (st.zestaw) return nie('Gra w zestawy już trwa.');
+    const powod = zestawPowod(cfg, st, f); if (powod) return nie(powod);
+    st.zestaw = { karty: Z.nowyUklad(ctx.los || Math.random, 9, 4), start: ms, blokadaDo: 0, znal: [] };
+    return tak('Zestawy: start.', 0);
+  }
+  if (!st.zestaw) return nie('Gra w zestawy nie trwa.');
+  const poCzasie = ms > st.zestaw.start + z.czas + 1500;
+  if (a.typ === 'zestaw_koniec' || poCzasie) { const w = zestawWynik(cfg, st); return tak(koniecTekst(w), 0, { zestawKoniec: w }); }
+  // wybór trzech kart
+  if (ms < st.zestaw.blokadaDo) return nie('Chwila przerwy po pomyłce.');
+  const t = Array.isArray(a.karty) ? a.karty.map(Number) : [];
+  if (t.length !== 3 || new Set(t).size !== 3 || t.some(i => !Number.isInteger(i) || i < 0 || i >= st.zestaw.karty.length)) return nie('Wybierzcie trzy różne karty.');
+  const k = Z.klucz(t);
+  if (st.zestaw.znal.includes(k)) return tak('Ten zestaw już macie.', 0, { zestawJuz: true });
+  if (!Z.czyZestaw(st.zestaw.karty[t[0]], st.zestaw.karty[t[1]], st.zestaw.karty[t[2]])) {
+    st.zestaw.blokadaDo = ms + z.kara;
+    return tak('To nie jest zestaw.', 0, { zestawZly: true });
+  }
+  st.zestaw.znal.push(k);
+  if (st.zestaw.znal.length >= Z.zestawyWUkladzie(st.zestaw.karty).length) { const w = zestawWynik(cfg, st); return tak('Wszystkie zestawy! ' + koniecTekst(w), 0, { zestawKoniec: w, zestawDobry: true }); }
+  return tak('Zestaw!', 0, { zestawDobry: true });
 }
 
 function kosztPorazki(naprawa, t) {
@@ -95,7 +141,7 @@ function obronaPortu(cfg, st, t) {
 
 /**
  * Wykonuje jedną akcję. Zwraca { ok, msg, delta, st } z nowym stanem (wejściowy stan nie jest zmieniany).
- * a.typ: kup | sprzedaj | atak | martwy | martwy_ok | martwy_nie | znajdzka | znajdzka_foto | zywy | korekta
+ * a.typ: zestaw_start | zestaw_wybor | zestaw_koniec | kup | sprzedaj | atak | martwy | martwy_ok | martwy_nie | znajdzka | znajdzka_foto | zywy | korekta
  * ctx: { min: minuty od północy, kosc: () => 1..6 }
  */
 function akcja(cfg, stanWe, a, ctx) {
@@ -147,13 +193,15 @@ function akcja(cfg, stanWe, a, ctx) {
     if (st.b < 0) return nie('Skarbiec jest na minusie. Najpierw odróbcie dług na punktach.');
     if (f === 'ostatnie' && st.late >= 1) return nie('W ostatnich 10 minutach wolno zaatakować tylko raz.');
     const s = staty(cfg, st);
-    const stat = s[TAKTYKI[t].stat];
+    const stat = s[TAKTYKI[t].stat], premia = st.premia || 0;
+    if (st.zestaw) return nie('Najpierw skończcie zestawy.');
     const kosci = [ctx.kosc(), ctx.kosc()];
     if (st.bud.latarnia) kosci.push(ctx.kosc());
     const rzut = kosci.reduce((x, y) => x + y, 0) - (kosci.length === 3 ? Math.min.apply(null, kosci) : 0);
-    const suma = stat + rzut;
+    const suma = stat + premia + rzut;
     if (f === 'ostatnie') st.late += 1;
-    const opis = TAKTYKI[t].statNazwa + ' ' + stat + ' + kości ' + rzut + ' = ' + suma + ', obrona ' + obrona;
+    st.premia = 0;   // premia z zestawów działa na jeden atak, wygrany albo nie
+    const opis = TAKTYKI[t].statNazwa + ' ' + stat + (premia ? ' + premia ' + premia : '') + ' + kości ' + rzut + ' = ' + suma + ', obrona ' + obrona;
     if (suma >= obrona) {
       let lup = 0;
       if (port.lup > 0) lup = Math.round(port.lup * (t === 0 ? u.natarcie_mnoznik : 1)) + (st.bud.sklad ? u.sklad_bonus : 0);
@@ -164,6 +212,8 @@ function akcja(cfg, stanWe, a, ctx) {
     st.b -= koszt; st.fail += 1;
     return tak(opis + ': atak nieudany' + (koszt ? ', naprawa -' + koszt : '') + '. Obrona portu rośnie o 1.', -koszt, { kosci, wygrana: false, port: port.nazwa });
   }
+
+  if (a.typ === 'zestaw_start' || a.typ === 'zestaw_wybor' || a.typ === 'zestaw_koniec') return zestawAkcja(cfg, st, a, ctx, nie, tak);
 
   if (a.typ === 'martwy') {
     const i = Number(a.punkt);
@@ -252,7 +302,7 @@ function edytujStan(cfg, stanWe, n) {
   const nie = msg => ({ ok: false, msg, delta: 0, st: stanWe });
   const calk = (v, min, max) => Number.isInteger(v) && v >= min && v <= max;
   n = n && typeof n === 'object' ? n : {};
-  const pola = [['b', 'bursztyn', -100000, 1000000], ['z', 'zdobyty bursztyn', 0, 1000000], ['p', 'porty', 0, cfg.porty.length], ['fail', 'nieudane ataki na następny port', 0, 999], ['late', 'ataki w ostatnich 10 minutach', 0, 999], ['zf', 'znajdźki ze zdjęć', 0, 999]];
+  const pola = [['b', 'bursztyn', -100000, 1000000], ['z', 'zdobyty bursztyn', 0, 1000000], ['p', 'porty', 0, cfg.porty.length], ['fail', 'nieudane ataki na następny port', 0, 999], ['late', 'ataki w ostatnich 10 minutach', 0, 999], ['zf', 'znajdźki ze zdjęć', 0, 999], ['premia', 'premia z zestawów do ataku', 0, 99]];
   for (const [k, etykieta, min, max] of pola) {
     if (n[k] === undefined || n[k] === null || n[k] === '') continue;
     const v = Number(n[k]);
@@ -332,14 +382,24 @@ function widokGildii(cfg, stany, i, min) {
       if (!powod && st.b < 0) powod = 'Skarbiec na minusie';
       if (!powod && f === 'ostatnie' && st.late >= 1) powod = 'W ostatnich 10 minutach tylko jeden atak';
       return { id: t.id, nazwa: t.nazwa, statNazwa: t.statNazwa, stat, obrona, brakuje,
-        szansa: obrona == null ? 0 : Math.round(100 * szansa(obrona - stat, !!st.bud.latarnia)),
+        szansa: obrona == null ? 0 : Math.round(100 * szansa(obrona - stat - (st.premia || 0), !!st.bud.latarnia)),
         kosztPorazki: kosztPorazki(s.naprawa, k), lupRazy: k === 0 ? u.natarcie_mnoznik : 1, powod };
     }),
     tabelaPortow: cfg.porty.map((p, k) => ({ nr: k + 1, nazwa: p.nazwa, broni: p.broni, obrona: TAKTYKI.map(t => p[t.id] >= NIE_DA_SIE ? null : p[t.id]), lup: p.lup, zdobyty: k < st.p, nastepny: k === st.p })),
     martwe: cfg.punkty_martwe.map((p, k) => ({ nr: k, nazwa: p.nazwa, pytanie: p.pytanie || '', nagroda: p.nagroda, zaliczony: !!st.md[k], zostaloProb: Math.max(0, u.proby_martwy - (st.mt[k] || 0)) })),
     zywe: cfg.punkty_zywe.map((p, k) => { const od = kiedyZnowu(cfg, st, k); return { nazwa: p.nazwa, wizyty: st.zy[k] || 0, limit: u.zywy_wizyty, znowuOd: od != null && min < od ? hhmm(od) : null, innyNajpierw: musiInny(cfg, st, k) }; }),
     znajdzki: { znalezione: Object.keys(st.zn).length + (st.zf || 0), wszystkie: cfg.znajdzki.length },
-    zdjecia: !!u.zdjecia, zdjeciaLimit: u.zdjecia_limit || 0, probyMartwy: u.proby_martwy,
+    probyMartwy: u.proby_martwy, premia: st.premia || 0,
+    zestawy: (() => {
+      const z = ZU(u), o = { od: z.od, premia: z.premia, max: z.max, czas: z.czas / 1000, kara: z.kara / 1000, powod: st.zestaw ? '' : zestawPowod(cfg, st, f) };
+      if (st.zestaw) {
+        const ms = Date.now();
+        o.gra = { karty: st.zestaw.karty.map(k => { const c = Z.cechy(k); return { kolor: c[0], ksztalt: c[1], liczba: c[2] + 1 }; }),
+          znal: st.zestaw.znal.map(x => x.split(',').map(Number)), wszystkich: Z.zestawyWUkladzie(st.zestaw.karty).length,
+          zostaloMs: Math.max(0, st.zestaw.start + z.czas - ms), blokadaMs: Math.max(0, st.zestaw.blokadaDo - ms) };
+      }
+      return o;
+    })(),
     ranking: ukryty ? [] : rank.map(x => ({ miejsce: x.miejsce, nazwa: x.nazwa, porty: x.porty, ja: x.i === i })),
     godziny: u.pilnuj_godzin ? { ostatnie: u.ostatnie_10_min, koniec: u.koniec_gry } : null,
   };
@@ -353,7 +413,7 @@ function sprawdzKonfiguracje(cfg) {
   lista('gildie', 1); lista('statki', 1); lista('budowle', 0); lista('porty', 1); lista('punkty_martwe', 0); lista('punkty_zywe', 0); lista('znajdzki', 0);
   if (b.length) return b;
   const u = cfg.ustawienia;
-  for (const k of ['start_bursztyn', 'port_bonus', 'kram_bonus', 'sklad_bonus', 'kantor_bonus', 'natarcie_mnoznik', 'limit_statkow', 'proby_martwy', 'nagroda_znajdzka', 'zywy_min', 'zywy_max', 'zywy_wizyty', 'zywy_przerwa_min', 'ukryj_ranking_min', 'zdjecia_limit']) {
+  for (const k of ['start_bursztyn', 'port_bonus', 'kram_bonus', 'sklad_bonus', 'kantor_bonus', 'natarcie_mnoznik', 'limit_statkow', 'proby_martwy', 'nagroda_znajdzka', 'zywy_min', 'zywy_max', 'zywy_wizyty', 'zywy_przerwa_min', 'ukryj_ranking_min', 'zestawy_od_portu', 'zestawy_czas_s', 'zestawy_premia', 'zestawy_max', 'zestawy_kara_s']) {
     if (typeof u[k] !== 'number' || !Number.isFinite(u[k])) b.push('Ustawienie „' + k + '” musi być liczbą.');
   }
   for (const k of ['start_gry', 'ostatnie_10_min', 'koniec_gry']) if (minuty(u[k]) == null) b.push('Ustawienie „' + k + '” musi mieć postać GG:MM.');
