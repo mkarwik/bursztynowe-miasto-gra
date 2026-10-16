@@ -69,7 +69,7 @@ label.btn{ display:inline-flex; align-items:center; justify-content:center } .bt
 .zgra .box{ max-width:440px; gap:10px } .zczas{ font-family:var(--display); font-weight:800; font-size:1.4rem; color:var(--sea); font-variant-numeric:tabular-nums }
 .zpasek{ height:6px; background:var(--tint) } .zpasek i{ display:block; height:100%; background:var(--amber); transition:width .2s linear }
 .zplansza{ display:grid; grid-template-columns:repeat(3,1fr); gap:8px } .zbtn{ background:#fff; border:2px solid var(--line); min-height:78px; display:flex; align-items:center; justify-content:center; cursor:pointer; padding:6px; border-radius:6px }
-.zbtn.wyb{ border-color:var(--sea); background:var(--tint); box-shadow:0 0 0 2px var(--sea) inset } .zbtn.czeka{ border-color:var(--sea) } .zbtn.dobry{ border-color:var(--ok); background:var(--ok-tint) } .zbtn.zly{ border-color:var(--bad); background:var(--bad-tint) }
+.zbtn.wyb{ border-color:var(--sea); background:var(--tint); box-shadow:0 0 0 2px var(--sea) inset } .zbtn.czeka{ border-color:var(--sea) } .zbtn.dobry{ border-color:var(--ok); background:var(--ok-tint) } @media (prefers-reduced-motion:no-preference){ .zbtn.dobry .zk{ animation:wejdz .35s ease-out } @keyframes wejdz{ from{ transform:scale(.6); opacity:0 } to{ transform:none; opacity:1 } } } .zbtn.zly{ border-color:var(--bad); background:var(--bad-tint) }
 .zblok{ background:var(--bad-tint); color:var(--bad); font-weight:700; padding:8px; text-align:center } .zznal{ display:flex; flex-direction:column; gap:4px } .zprz{ display:flex; gap:6px; align-items:center }
 .zinstr{ max-height:90vh; overflow:auto } .zprzyklad{ border-left:4px solid var(--ok); padding:6px 10px; background:var(--ok-tint); display:flex; flex-direction:column; gap:6px } .zprzyklad.zle{ border-left-color:var(--bad); background:var(--bad-tint) } .zprzyklad p{ font-size:.92rem }
 .card.test{ border:2px dashed var(--sea); background:var(--tint) } .card.test .field{ margin-top:8px } .card.test select{ flex:1 }
@@ -338,7 +338,7 @@ function zestawInstrukcja(){
     '<div class="zprzyklad ok">' + p(K(2, 0, 1), K(2, 0, 2), K(2, 0, 3)) + '<p>✓ Kolor ten sam, rysunek ten sam, liczba za każdym razem inna.</p></div>' +
     '<div class="zprzyklad ok">' + p(K(0, 0, 1), K(1, 1, 2), K(2, 2, 3)) + '<p>✓ Wszystko inne: kolory, rysunki i liczby.</p></div>' +
     '<div class="zprzyklad zle">' + p(K(1, 0, 2), K(1, 1, 2), K(0, 2, 2)) + '<p>✗ Dwa niebieskie i jeden bursztynowy. Kolor nie jest ani taki sam, ani cały inny.</p></div>' +
-    '<p>Klikacie 3 karty. Na planszy jest <b>4 zestawy</b>, macie <b>' + (S.w.zestawy ? S.w.zestawy.czas : 60) + ' sekund</b>. Zła trójka: ' + (S.w.zestawy ? S.w.zestawy.kara : 3) + ' sekundy przerwy.</p>' +
+    '<p>Klikacie 3 karty. <b>Znaleziony zestaw znika, a na jego miejsce wchodzą nowe karty.</b> Na planszy zawsze jest co najmniej jeden zestaw. Macie <b>' + (S.w.zestawy ? S.w.zestawy.czas : 60) + ' sekund</b>, zła trójka to ' + (S.w.zestawy ? S.w.zestawy.kara : 3) + ' sekundy przerwy.</p>' +
     '<div class="btns"><button class="btn amber" id="zSerio">Gramy na serio</button><button class="btn ghost" id="zTr2">Trening</button><button class="btn ghost" id="zZam">Zamknij</button></div></div></div>';
   pam('bm_zest', '1');
   document.getElementById('zSerio').onclick = zestawStart;
@@ -358,26 +358,36 @@ function zestawStart(){
 }
 function zestawTrening(){
   // trening w całości w telefonie: bez punktów, bez zapisu na serwerze
-  var karty = zUklad(), wsz = zZestawy(karty);
-  S.zTren = { karty: karty.map(function(k){ return { kolor: k % 3, ksztalt: Math.floor(k / 3) % 3, liczba: Math.floor(k / 9) + 1, k: k }; }), znal: [], wszystkich: wsz.length, koniec: Date.now() + 60000, blokada: 0 };
+  S.zTren = { karty: zUklad().map(zKarta), znal: [], koniec: Date.now() + 60000 };
   S.zWyb = []; zestawEkran();
 }
 function zCzy(a, b, c){ return [0, 1, 2].every(function(i){ var f = function(k){ return Math.floor(k / Math.pow(3, i)) % 3; }; return (f(a) + f(b) + f(c)) % 3 === 0; }) && a !== b && b !== c && a !== c; }
 function zZestawy(k){ var o = []; for (var i = 0; i < k.length; i++) for (var j = i + 1; j < k.length; j++) for (var l = j + 1; l < k.length; l++) if (zCzy(k[i], k[j], k[l])) o.push([i, j, l]); return o; }
-function zUklad(){ for (var p = 0; p < 5000; p++){ var t = []; for (var i = 0; i < 27; i++) t.push(i); for (i = 26; i > 0; i--){ var j = Math.floor(Math.random() * (i + 1)), x = t[i]; t[i] = t[j]; t[j] = x; } var k = t.slice(0, 9); if (zZestawy(k).length === 4) return k; } return t.slice(0, 9); }
+function zKarta(k){ return { kolor: k % 3, ksztalt: Math.floor(k / 3) % 3, liczba: Math.floor(k / 9) + 1, k: k }; }
+function zUklad(){ for (var p = 0; p < 5000; p++){ var t = []; for (var i = 0; i < 27; i++) t.push(i); for (i = 26; i > 0; i--){ var j = Math.floor(Math.random() * (i + 1)), x = t[i]; t[i] = t[j]; t[j] = x; } var k = t.slice(0, 9); if (zZestawy(k).length === 3) return k; } return t.slice(0, 9); }
+// jak na serwerze: w miejsce znalezionego zestawu nowe karty, tak żeby na planszy były 2–4 zestawy (co najmniej 1)
+function zUzup(k, idx){
+  var pula = []; for (var x = 0; x < 27; x++) if (k.indexOf(x) < 0) pula.push(x);
+  var tr = []; for (var a = 0; a < pula.length; a++) for (var b = a + 1; b < pula.length; b++) for (var c = b + 1; c < pula.length; c++) tr.push([pula[a], pula[b], pula[c]]);
+  for (var i = tr.length - 1; i > 0; i--){ var j = Math.floor(Math.random() * (i + 1)), y = tr[i]; tr[i] = tr[j]; tr[j] = y; }
+  var zapas = null;
+  for (i = 0; i < tr.length; i++){ var n = k.slice(); for (var m = 0; m < 3; m++) n[idx[m]] = tr[i][m]; var ile = zZestawy(n).length; if (ile >= 2 && ile <= 4) return n; if (ile >= 1 && !zapas) zapas = n; }
+  return zapas || zUklad();
+}
 function zGra(){ return S.zTren || (S.w.zestawy && S.w.zestawy.gra); }
 function zestawEkran(){
   var g = zGra(); if (!g){ zamknij(); return; }
   var tren = !!S.zTren, z = S.w.zestawy || {};
   if (!tren && S.zKoniecCzasu == null) S.zKoniecCzasu = Date.now() + g.zostaloMs;
   var znal = g.znal.length, premia = tren ? 0 : Math.min(znal, z.max) * z.premia;
+  var maks = tren ? 0 : z.max * z.premia;
   var h = '<div class="modal zgra" role="dialog" aria-modal="true"><div class="box">' +
     '<div class="row"><span class="name">' + (tren ? 'Trening' : 'Zestawy') + '</span><span class="zczas" id="zCzas"></span></div>' +
     '<div class="zpasek"><i id="zPasek"></i></div>' +
-    '<p class="sub">Znalezione: <b>' + znal + ' z ' + g.wszystkich + '</b>' + (tren ? ' · bez punktów' : ' · premia <b>+' + premia + '</b>') + '</p>' +
+    '<p class="sub">Znalezione: <b>' + znal + '</b>' + (tren ? ' · bez punktów' : ' · premia <b>+' + premia + '</b>' + (premia >= maks ? ' (maksimum)' : ' z +' + maks)) + '</p>' +
     '<div class="zplansza">' + g.karty.map(function(c, i){ return '<button class="zbtn' + (S.zWyb.indexOf(i) >= 0 ? ' wyb' : '') + '" data-zk="' + i + '">' + kartaZ(c) + '</button>'; }).join('') + '</div>' +
     '<div class="zblok" id="zBlok" hidden></div>' +
-    (znal ? '<div class="zznal">' + g.znal.map(function(t){ return '<div class="zprz">' + t.map(function(i){ return kartaZ(g.karty[i], 'mini'); }).join('') + '</div>'; }).join('') + '</div>' : '') +
+    (znal ? '<div class="zznal">' + g.znal.slice(-4).map(function(t){ return '<div class="zprz">' + t.map(function(c){ return kartaZ(c, 'mini'); }).join('') + '</div>'; }).join('') + '</div>' : '') +
     '<div class="btns"><button class="btn ghost" id="zKoniec">' + (tren ? 'Zakończ trening' : 'Kończymy') + '</button></div></div></div>';
   $war.innerHTML = h;
   var b = $war.querySelectorAll('[data-zk]');
@@ -391,19 +401,20 @@ function zKlik(i){
   if (S.zWyb.length < 3){ zestawEkran(); return; }
   var t = S.zWyb.slice(); S.zWyb = [];
   if (S.zTren){
-    var g = S.zTren, kl = t.slice().sort().join(',');
-    if (g.znal.some(function(x){ return x.slice().sort().join(',') === kl; })) { zestawEkran(); return toast('Ten zestaw już macie.'); }
-    if (zCzy(g.karty[t[0]].k, g.karty[t[1]].k, g.karty[t[2]].k)){ g.znal.push(t); zMig(t, 'dobry'); if (g.znal.length >= g.wszystkich) return setTimeout(zKoniec, 600); }
-    else { S.zBlok = Date.now() + 3000; zMig(t, 'zly'); }
-    setTimeout(zestawEkran, 450); return;
+    var g = S.zTren;
+    if (zCzy(g.karty[t[0]].k, g.karty[t[1]].k, g.karty[t[2]].k)){
+      g.znal.push(t.map(function(i){ return g.karty[i]; }));
+      g.karty = zUzup(g.karty.map(function(c){ return c.k; }), t).map(zKarta);
+      zestawEkran(); zMig(t, 'dobry');
+    } else { S.zBlok = Date.now() + 3000; zMig(t, 'zly'); setTimeout(zestawEkran, 450); }
+    return;
   }
   zMig(t, 'czeka');
   zestawApi({ typ:'zestaw_wybor', karty: t }, function(k){
     var z = k.zestaw || {};
     if (z.koniec) return zWynik(z.koniec);
     if (z.zly){ zestawEkran(); zMig(t, 'zly'); return; }
-    if (z.dobry){ zestawEkran(); zMig(t, 'dobry'); try{ navigator.vibrate && navigator.vibrate(60); }catch(e){} return; }
-    if (z.juz) toast('Ten zestaw już macie.');
+    if (z.dobry){ zestawEkran(); zMig(t, 'dobry'); try{ navigator.vibrate && navigator.vibrate(60); }catch(e){} return; }   // na tych miejscach są już nowe karty
     zestawEkran();
   });
 }
@@ -424,14 +435,14 @@ function zZegar(){
 function zKoniec(){
   clearInterval(S.zTimer);
   if (S.zTren){ var n = S.zTren.znal.length; S.zTren = null; S.zBlok = 0;
-    $war.innerHTML = '<div class="modal"><div class="box"><h2>Koniec treningu</h2><p>Znaleźliście ' + n + ' z 4 zestawów. W treningu nie ma punktów.</p><div class="btns"><button class="btn" id="zOk">OK</button></div></div></div>';
+    $war.innerHTML = '<div class="modal"><div class="box"><h2>Koniec treningu</h2><p>Znaleźliście ' + n + (n === 1 ? ' zestaw' : n > 1 && n < 5 ? ' zestawy' : ' zestawów') + '. W treningu nie ma punktów.</p><div class="btns"><button class="btn" id="zOk">OK</button></div></div></div>';
     document.getElementById('zOk').onclick = function(){ zamknij(); rysuj(); }; return; }
   zestawApi({ typ:'zestaw_koniec' }, function(k){ zWynik((k.zestaw && k.zestaw.koniec) || { ile: 0, premia: S.w.premia || 0 }); });
 }
 function zWynik(w){
   clearInterval(S.zTimer); S.zKoniecCzasu = null; S.zBlok = 0; S.zWyb = [];
   $war.innerHTML = '<div class="modal"><div class="box ' + (w.premia ? 'win' : '') + '"><h2>' + (w.premia ? 'Premia +' + w.premia : 'Tym razem bez premii') + '</h2>' +
-    '<p>' + (w.ile ? 'Znaleźliście ' + w.ile + ' z 4 zestawów. ' : '') + (w.premia ? 'Premia doda się do waszego następnego ataku.' : 'Nic nie tracicie. Możecie atakować normalnie.') + '</p>' +
+    '<p>' + (w.ile ? 'Znaleźliście ' + w.ile + (w.ile === 1 ? ' zestaw' : w.ile < 5 ? ' zestawy' : ' zestawów') + '. ' : '') + (w.premia ? 'Premia doda się do waszego następnego ataku.' : 'Nic nie tracicie. Możecie atakować normalnie.') + '</p>' +
     '<div class="btns"><button class="btn amber" id="zOk">Do ataku</button></div></div></div>';
   document.getElementById('zOk').onclick = function(){ zamknij(); S.tab = 'atak'; rysuj(); };
 }

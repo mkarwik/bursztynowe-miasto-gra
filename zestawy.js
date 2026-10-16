@@ -34,4 +34,24 @@ function nowyUklad(los, ile, zestawow) {
 
 const klucz = t => t.slice().sort((x, y) => x - y).join(',');
 
-module.exports = { cechy, czyZestaw, zestawyWUkladzie, nowyUklad, klucz };
+// Po znalezieniu zestawu: karty z miejsc `idx` znikają, wchodzą nowe tak, żeby na planszy był co najmniej jeden zestaw
+// (najchętniej 2–4, żeby nie było ani za trudno, ani za łatwo). Zwraca nową planszę.
+function uzupelnij(karty, idx, los) {
+  los = los || Math.random;
+  const usuwane = new Set(idx.map(i => karty[i]));
+  const pula = []; for (let k = 0; k < 27; k++) if (!karty.includes(k) && !usuwane.has(k)) pula.push(k);
+  const trojki = [];
+  for (let a = 0; a < pula.length; a++) for (let b = a + 1; b < pula.length; b++) for (let c = b + 1; c < pula.length; c++) trojki.push([pula[a], pula[b], pula[c]]);
+  for (let i = trojki.length - 1; i > 0; i--) { const j = Math.floor(los() * (i + 1)); [trojki[i], trojki[j]] = [trojki[j], trojki[i]]; }
+  let zapas = null;
+  for (const t of trojki) {
+    const nowa = karty.slice(); idx.forEach((i, n) => { nowa[i] = t[n]; });
+    const ile = zestawyWUkladzie(nowa).length;
+    if (ile >= 2 && ile <= 4) return nowa;
+    if (ile >= 1 && !zapas) zapas = nowa;
+  }
+  return zapas || nowy(los);
+  function nowy(l) { return nowyUklad(l, karty.length, 3); }
+}
+
+module.exports = { cechy, czyZestaw, zestawyWUkladzie, nowyUklad, uzupelnij, klucz };

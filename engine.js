@@ -83,7 +83,7 @@ function zestawAkcja(cfg, st, a, ctx, nie, tak) {
   if (a.typ === 'zestaw_start') {
     if (st.zestaw) return nie('Gra w zestawy już trwa.');
     const powod = zestawPowod(cfg, st, f); if (powod) return nie(powod);
-    st.zestaw = { karty: Z.nowyUklad(ctx.los || Math.random, 9, 4), start: ms, blokadaDo: 0, znal: [] };
+    st.zestaw = { karty: Z.nowyUklad(ctx.los || Math.random, 9, 3), start: ms, blokadaDo: 0, znal: [] };
     return tak('Zestawy: start.', 0);
   }
   if (!st.zestaw) return nie('Gra w zestawy nie trwa.');
@@ -93,15 +93,15 @@ function zestawAkcja(cfg, st, a, ctx, nie, tak) {
   if (ms < st.zestaw.blokadaDo) return nie('Chwila przerwy po pomyłce.');
   const t = Array.isArray(a.karty) ? a.karty.map(Number) : [];
   if (t.length !== 3 || new Set(t).size !== 3 || t.some(i => !Number.isInteger(i) || i < 0 || i >= st.zestaw.karty.length)) return nie('Wybierzcie trzy różne karty.');
-  const k = Z.klucz(t);
-  if (st.zestaw.znal.includes(k)) return tak('Ten zestaw już macie.', 0, { zestawJuz: true });
-  if (!Z.czyZestaw(st.zestaw.karty[t[0]], st.zestaw.karty[t[1]], st.zestaw.karty[t[2]])) {
+  const karty = t.map(i => st.zestaw.karty[i]);
+  if (!Z.czyZestaw(karty[0], karty[1], karty[2])) {
     st.zestaw.blokadaDo = ms + z.kara;
     return tak('To nie jest zestaw.', 0, { zestawZly: true });
   }
-  st.zestaw.znal.push(k);
-  if (st.zestaw.znal.length >= Z.zestawyWUkladzie(st.zestaw.karty).length) { const w = zestawWynik(cfg, st); return tak('Wszystkie zestawy! ' + koniecTekst(w), 0, { zestawKoniec: w, zestawDobry: true }); }
-  return tak('Zestaw!', 0, { zestawDobry: true });
+  // znaleziony zestaw znika, na jego miejsce wchodzą nowe karty (zawsze zostaje co najmniej jeden zestaw)
+  st.zestaw.znal.push(karty.join(','));
+  st.zestaw.karty = Z.uzupelnij(st.zestaw.karty, t, ctx.los || Math.random);
+  return tak('Zestaw!', 0, { zestawDobry: true, zestawNowe: t });
 }
 
 function kosztPorazki(naprawa, t) {
@@ -395,7 +395,7 @@ function widokGildii(cfg, stany, i, min) {
       if (st.zestaw) {
         const ms = Date.now();
         o.gra = { karty: st.zestaw.karty.map(k => { const c = Z.cechy(k); return { kolor: c[0], ksztalt: c[1], liczba: c[2] + 1 }; }),
-          znal: st.zestaw.znal.map(x => x.split(',').map(Number)), wszystkich: Z.zestawyWUkladzie(st.zestaw.karty).length,
+          znal: st.zestaw.znal.map(x => x.split(',').map(Number).map(k => { const c = Z.cechy(k); return { kolor: c[0], ksztalt: c[1], liczba: c[2] + 1 }; })),
           zostaloMs: Math.max(0, st.zestaw.start + z.czas - ms), blokadaMs: Math.max(0, st.zestaw.blokadaDo - ms) };
       }
       return o;

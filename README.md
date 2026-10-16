@@ -22,7 +22,7 @@ Znajdźki zalicza się kodem z kartki (od razu). Punkt martwy: gildia wysyła od
 
 ### Zestawy (premia do ataku)
 
-Minigra na wzór SET. Od portu `zestawy_od_portu` (3) gildia może przed atakiem zagrać: 9 kart, w układzie zawsze dokładnie 4 zestawy, czas `zestawy_czas_s` (60 s), zła trójka to `zestawy_kara_s` (3 s) blokady. Każdy zestaw daje `zestawy_premia` (+2) do następnego ataku, liczy się najwyżej `zestawy_max` (3) zestawy. Czas, blokadę i premię liczy serwer. Premia działa na jeden atak; przegrana gra nic nie kosztuje. W aplikacji jest objaśnienie z przykładami i trening bez punktów. Obrona portów 3–10 jest wyższa o 4, żeby premia nie rozregulowała balansu.
+Minigra na wzór SET. Od portu `zestawy_od_portu` (3) gildia może przed atakiem zagrać: 9 kart, znaleziony zestaw znika i wchodzą nowe karty (na planszy zawsze jest co najmniej jeden zestaw), czas `zestawy_czas_s` (60 s), zła trójka to `zestawy_kara_s` (3 s) blokady. Każdy zestaw daje `zestawy_premia` (+2) do następnego ataku, liczy się najwyżej `zestawy_max` (3) zestawy. Czas, blokadę i premię liczy serwer. Premia działa na jeden atak; przegrana gra nic nie kosztuje. W aplikacji jest objaśnienie z przykładami i trening bez punktów. Obrona portów 3–10 jest wyższa o 4, żeby premia nie rozregulowała balansu.
 
 Przycisk **„Przywróć domyślny cennik”** (zakładka Cennik) wczytuje statki, budowle, porty i liczby z nowej wersji aplikacji, zostawiając gildie, hasła, punkty, kody i godziny.
 

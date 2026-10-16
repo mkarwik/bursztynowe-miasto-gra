@@ -120,7 +120,7 @@ function wykonaj(g, kto, a) {
   // pojedyncze kliknięcia w zestawach nie zaśmiecają dziennika; zapisuje się start i wynik
   if (!(a.typ === 'zestaw_wybor' && !w.zestawKoniec) && !(a.typ === 'zestaw_koniec' && !w.ok)) wpis(g, kto, opis, w, a);
   return { ok: w.ok && !w.bledna, tekst: w.msg, kosci: w.kosci || null, wygrana: w.wygrana, atak: a.typ === 'atak' && !!w.kosci,
-    zestaw: a.typ.startsWith('zestaw') ? { dobry: !!w.zestawDobry, zly: !!w.zestawZly, juz: !!w.zestawJuz, koniec: w.zestawKoniec || null } : undefined };
+    zestaw: a.typ.startsWith('zestaw') ? { dobry: !!w.zestawDobry, zly: !!w.zestawZly, nowe: w.zestawNowe || null, koniec: w.zestawKoniec || null } : undefined };
 }
 
 function dziennikGildii(g, ile) {
@@ -226,7 +226,7 @@ function testAkcja(a) {
   if (w.ok) { test = w.st; testZapisz(); }
   if (!(a.typ === 'zestaw_wybor' && !w.zestawKoniec)) { testDz.push({ czas: t.czas.slice(0, 5), opis: opisAkcji(a), wynik: w.msg, ok: w.ok }); if (testDz.length > 30) testDz.shift(); }
   return { ok: w.ok && !w.bledna, tekst: w.msg, kosci: w.kosci || null, wygrana: w.wygrana, atak: a.typ === 'atak' && !!w.kosci,
-    zestaw: a.typ.startsWith('zestaw') ? { dobry: !!w.zestawDobry, zly: !!w.zestawZly, juz: !!w.zestawJuz, koniec: w.zestawKoniec || null } : undefined };
+    zestaw: a.typ.startsWith('zestaw') ? { dobry: !!w.zestawDobry, zly: !!w.zestawZly, nowe: w.zestawNowe || null, koniec: w.zestawKoniec || null } : undefined };
 }
 function testWidok() {
   if (!test) { test = testNowy(); testZapisz(); }
