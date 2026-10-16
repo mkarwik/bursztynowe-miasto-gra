@@ -64,7 +64,7 @@ const ZU = u => ({ od: u.zestawy_od_portu || 0, czas: (u.zestawy_czas_s || 60) *
 // Czy gildia może teraz zagrać; zwraca powód odmowy albo ''.
 function zestawPowod(cfg, st, f) {
   const z = ZU(cfg.ustawienia);
-  if (!z.od || !z.premia) return 'Zestawy są wyłączone.';
+  if (!z.od || !z.premia) return 'Set jest wyłączony.';
   if (f === 'przed') return 'Gra jeszcze się nie zaczęła.';
   if (f === 'koniec') return 'Gra już się skończyła.';
   if (st.p >= cfg.porty.length) return 'Wszystkie porty zdobyte.';
@@ -86,18 +86,18 @@ function zestawWynik(cfg, st) {
 }
 function zestawAkcja(cfg, st, a, ctx, nie, tak) {
   const z = ZU(cfg.ustawienia), ms = ctx.ms != null ? ctx.ms : Date.now(), f = faza(cfg, ctx.min);
-  const koniecTekst = w => (w.ile ? 'Zestawy: ' + w.ile + ', premia +' + w.premia + '.' : 'Zestawy: tym razem bez premii.');
+  const koniecTekst = w => (w.ile ? 'Set: ' + w.ile + ', premia +' + w.premia + '.' : 'Set: tym razem bez premii.');
   if (a.typ === 'zestaw_start') {
-    if (st.zestaw) return nie('Gra w zestawy już trwa.');
+    if (st.zestaw) return nie('Set już trwa.');
     const powod = zestawPowod(cfg, st, f); if (powod) return nie(powod);
     // zestawy grają się przy ataku: najpierw sprawdzamy, czy ten atak w ogóle jest możliwy
     const t = TAKTYKI.findIndex(x => x.id === a.taktyka);
     if (t < 0) return nie('Nie wybrano taktyki.');
     const ap = atakPowod(cfg, st, t, f); if (ap) return nie(ap);
-    st.zestaw = { karty: Z.nowyUklad(ctx.los || Math.random, 9, 3, 5), start: ms, blokadaDo: 0, znal: [], taktyka: t };
-    return tak('Zestawy: start.', 0);
+    st.zestaw = { karty: Z.nowyUklad(ctx.los || Math.random, 8, 2, 4), start: ms, blokadaDo: 0, znal: [], taktyka: t };
+    return tak('Set: start.', 0);
   }
-  if (!st.zestaw) return nie('Gra w zestawy nie trwa.');
+  if (!st.zestaw) return nie('Set nie trwa.');
   const poCzasie = ms > st.zestaw.start + z.czas + 1500;
   if (a.typ === 'zestaw_koniec' || poCzasie) {
     // koniec zestawów = od razu atak wybraną taktyką, z premią
@@ -112,14 +112,17 @@ function zestawAkcja(cfg, st, a, ctx, nie, tak) {
   const t = Array.isArray(a.karty) ? a.karty.map(Number) : [];
   if (t.length !== 3 || new Set(t).size !== 3 || t.some(i => !Number.isInteger(i) || i < 0 || i >= st.zestaw.karty.length)) return nie('Wybierzcie trzy różne karty.');
   const karty = t.map(i => st.zestaw.karty[i]);
+  // telefon podaje też, jakie karty widział; jeśli plansza w międzyczasie się zmieniła, nie karzemy, tylko pokazujemy aktualną
+  if (Array.isArray(a.widziane) && (a.widziane.length !== 3 || a.widziane.some((k, n) => Number(k) !== karty[n])))
+    return tak('Karty się zmieniły, wybierzcie jeszcze raz.', 0, { zestawStare: true });
   if (!Z.czyZestaw(karty[0], karty[1], karty[2])) {
     st.zestaw.blokadaDo = ms + z.kara;
-    return tak('To nie jest zestaw.', 0, { zestawZly: true });
+    return tak('To nie jest set.', 0, { zestawZly: true });
   }
   // znaleziony zestaw znika, na jego miejsce wchodzą nowe karty (zawsze zostaje co najmniej jeden zestaw)
   st.zestaw.znal.push(karty.join(','));
   st.zestaw.karty = Z.uzupelnij(st.zestaw.karty, t, ctx.los || Math.random);
-  return tak('Zestaw!', 0, { zestawDobry: true, zestawNowe: t });
+  return tak('Set!', 0, { zestawDobry: true, zestawNowe: t });
 }
 
 function kosztPorazki(naprawa, t) {
@@ -212,7 +215,7 @@ function akcja(cfg, stanWe, a, ctx) {
     if (f === 'ostatnie' && st.late >= 1) return nie('W ostatnich 10 minutach wolno zaatakować tylko raz.');
     const s = staty(cfg, st);
     const stat = s[TAKTYKI[t].stat], premia = st.premia || 0;
-    if (st.zestaw) return nie('Najpierw skończcie zestawy.');
+    if (st.zestaw) return nie('Najpierw skończcie Seta.');
     const kosci = [ctx.kosc(), ctx.kosc()];
     if (st.bud.latarnia) kosci.push(ctx.kosc());
     const rzut = kosci.reduce((x, y) => x + y, 0) - (kosci.length === 3 ? Math.min.apply(null, kosci) : 0);

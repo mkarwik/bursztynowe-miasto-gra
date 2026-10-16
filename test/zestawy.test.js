@@ -18,16 +18,17 @@ test('zestawy: reguła, układy, dokładanie nowych kart', () => {
   assert.ok(!Z.czyZestaw(0, 0, 0));
   const wszystkie = Z.zestawyWUkladzie(Array.from({ length: 27 }, (_, i) => i)); assert.equal(wszystkie.length, 27 * 26 / 6);
   // długa seria: zawsze jest zestaw, znalezione karty znikają, nowe są inne
-  let u = Z.nowyUklad(Math.random, 9, 3, 5); const n0 = Z.zestawyWUkladzie(u).length; assert.ok(n0 >= 3 && n0 <= 5);
+  let u = Z.nowyUklad(); assert.equal(u.length, 8); const n0 = Z.zestawyWUkladzie(u).length; assert.ok(n0 >= 2 && n0 <= 4); let dwa = 0;
   for (let i = 0; i < 300; i++) {
-    const zs = Z.zestawyWUkladzie(u); assert.ok(zs.length >= 2, 'na planszy zawsze są co najmniej 2 zestawy');
+    const zs = Z.zestawyWUkladzie(u); assert.ok(zs.length >= 1, 'na planszy zawsze jest set'); if (zs.length >= 2) dwa++;
     const t = zs[Math.floor(Math.random() * zs.length)], stare = t.map(x => u[x]);
     const n = Z.uzupelnij(u, t);
-    assert.equal(new Set(n).size, 9, 'bez powtórzeń kart');
+    assert.equal(new Set(n).size, 8, 'bez powtórzeń kart');
     assert.ok(t.every(x => !stare.includes(n[x])), 'znalezione karty znikają');
     assert.ok(u.every((k, x) => t.includes(x) || n[x] === k), 'reszta zostaje na miejscu');
     u = n;
   }
+  assert.ok(dwa >= 290, 'prawie zawsze co najmniej 2 sety: ' + dwa);
 });
 
 test('zestawy w silniku: grane przy ataku, od 3. portu, czas, blokada, nowe karty, premia do tego ataku', () => {
@@ -38,14 +39,18 @@ test('zestawy w silniku: grane przy ataku, od 3. portu, czas, blokada, nowe kart
   assert.equal(E.akcja(cfg, st, { typ: 'zestaw_start', taktyka: 'natarcie' }, ctx(T0)).ok, false, 'Kłajpedy nie da się natarciem');
   r = E.akcja(cfg, st, { typ: 'zestaw_start', taktyka: 'zaskoczenie' }, ctx(T0)); assert.ok(r.ok); st = r.st;
   const zest = () => Z.zestawyWUkladzie(st.zestaw.karty);
-  assert.ok(zest().length >= 3 && zest().length <= 5, 'na start 3–5 zestawów');
+  assert.equal(st.zestaw.karty.length, 8); assert.ok(zest().length >= 2 && zest().length <= 4, 'na start 2–4 sety');
   assert.equal(E.akcja(cfg, st, { typ: 'zestaw_start', taktyka: 'zaskoczenie' }, ctx(T0)).ok, false, 'nie dwie naraz');
   assert.equal(E.akcja(cfg, st, { typ: 'atak', taktyka: 'zaskoczenie' }, ctx(T0)).ok, false, 'w trakcie zestawów nie atakuje się osobno');
-  let zla = null; for (let a = 0; a < 9 && !zla; a++) for (let b = a + 1; b < 9 && !zla; b++) for (let c = b + 1; c < 9 && !zla; c++) if (!zest().some(t => t.join() === [a, b, c].join())) zla = [a, b, c];
+  let zla = null; for (let a = 0; a < 8 && !zla; a++) for (let b = a + 1; b < 8 && !zla; b++) for (let c = b + 1; c < 8 && !zla; c++) if (!zest().some(t => t.join() === [a, b, c].join())) zla = [a, b, c];
   r = E.akcja(cfg, st, { typ: 'zestaw_wybor', karty: zla }, ctx(T0 + 1000)); assert.ok(r.zestawZly); st = r.st;
   assert.equal(E.akcja(cfg, st, { typ: 'zestaw_wybor', karty: zest()[0] }, ctx(T0 + 2000)).ok, false, 'w czasie blokady nie');
   const przed = st.zestaw.karty.slice(), t0 = zest()[0];
-  r = E.akcja(cfg, st, { typ: 'zestaw_wybor', karty: t0 }, ctx(T0 + 4100)); assert.ok(r.zestawDobry); st = r.st;
+  // telefon widział inne karty (stara plansza): bez kary, bez punktu, plansza bez zmian
+  const inne = t0.map(i => (przed[i] + 1) % 27);
+  r = E.akcja(cfg, st, { typ: 'zestaw_wybor', karty: t0, widziane: inne }, ctx(T0 + 4100)); assert.ok(r.zestawStare); assert.ok(!r.zestawZly && !r.zestawDobry);
+  assert.equal(r.st.zestaw.blokadaDo, st.zestaw.blokadaDo, 'bez nowej blokady'); assert.deepEqual(r.st.zestaw.karty, przed); st = r.st;
+  r = E.akcja(cfg, st, { typ: 'zestaw_wybor', karty: t0, widziane: t0.map(i => przed[i]) }, ctx(T0 + 4100)); assert.ok(r.zestawDobry); st = r.st;
   assert.ok(t0.every(i => st.zestaw.karty[i] !== przed[i]), 'w miejsce zestawu weszły nowe karty');
   assert.ok(zest().length >= 1);
   r = E.akcja(cfg, st, { typ: 'zestaw_wybor', karty: zest()[0] }, ctx(T0 + 6000)); st = r.st;
@@ -75,13 +80,13 @@ test('zestawy przez serwer: kończą się same po czasie, kliknięcia nie zaśmi
   try {
     let k = await api('k', { typ: 'edytuj', gildia: 0, stan: { p: 2 } }); assert.ok(k.komunikat.ok);
     const c = k.widok.konfiguracja; c.ustawienia.zestawy_czas_s = 1; await api('k', { typ: 'zapisz_konfiguracje', konfiguracja: c });
-    let g = await api('gildia1-zmien', { typ: 'zestaw_start', taktyka: 'zaskoczenie' }); assert.ok(g.komunikat.ok, g.komunikat.tekst); assert.equal(g.widok.zestawy.gra.karty.length, 9);
+    let g = await api('gildia1-zmien', { typ: 'zestaw_start', taktyka: 'zaskoczenie' }); assert.ok(g.komunikat.ok, g.komunikat.tekst); assert.equal(g.widok.zestawy.gra.karty.length, 8);
     assert.ok(!JSON.stringify(g.widok.zestawy).includes('"znal":[[') || true);
     const przed = (await api('k')).widok.ileZdarzen;
     g = await api('gildia1-zmien', { typ: 'zestaw_wybor', karty: [0, 1, 2] });
     assert.equal((await api('k')).widok.ileZdarzen, przed, 'pojedyncze kliknięcie nie trafia do dziennika');
     await new Promise(r => setTimeout(r, 2800));
     g = await api('gildia1-zmien'); assert.equal(g.widok.zestawy.gra, undefined, 'po czasie gra zakończona przez serwer');
-    assert.ok(g.widok.dziennik.some(d => /Atak po zestawach/.test(d.opis)), 'po czasie atak odbywa się sam');
+    assert.ok(g.widok.dziennik.some(d => /Atak po Secie/.test(d.opis)), 'po czasie atak odbywa się sam');
   } finally { proc.kill(); }
 });

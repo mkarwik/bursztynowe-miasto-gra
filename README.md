@@ -20,9 +20,9 @@ Opcjonalne zmienne: `PORT` (domyślnie 3000), `DATA_DIR` (domyślnie /data w kon
 
 Znajdźki zalicza się kodem z kartki (od razu). Punkt martwy: gildia wysyła odpowiedź tekstem, zdjęciem albo jednym i drugim, a kadra sprawdza zgłoszenie w zakładce **Zgłoszenia** (widzi pytanie i poprawną odpowiedź). „Zalicz” dolicza nagrodę z bonusami, „Odrzuć” zużywa jedną z prób i wysyła gildii powód. Gildia dostaje powiadomienie w ciągu kilku sekund. Ustawienie `martwy_auto` na „tak” zalicza od razu tekst zgodny z odpowiedzią (mniej pracy dla kadry). Zdjęcia leżą w `/data/zdjecia`, kadra usuwa je jednym przyciskiem w zakładce Gra. Nadzór ostrzega, gdy zgłoszenie czeka dłużej niż 4 minuty.
 
-### Zestawy (premia do ataku)
+### Set (premia do ataku)
 
-Minigra na wzór SET, grana przy ataku. Od portu `zestawy_od_portu` (3), gdy gildia wybierze taktykę, okno ataku proponuje „Gramy w zestawy, potem atak” albo „Atakujemy od razu”. Plansza ma 9 kart i zawsze 3–5 zestawów; znaleziony zestaw znika i wchodzą nowe karty. Czas `zestawy_czas_s` (60 s), zła trójka to `zestawy_kara_s` (3 s) blokady. Każdy zestaw daje `zestawy_premia` (+2) do tego ataku, liczy się najwyżej `zestawy_max` (3). Po czasie albo „Kończymy” od razu następuje rzut kośćmi z premią; gdy telefon zamknięto w trakcie, serwer kończy grę i wykonuje atak sam. Czas, blokadę i premię liczy serwer. W aplikacji jest objaśnienie z przykładami i trening bez punktów. Obrona portów 3–10 jest wyższa o 4, żeby premia nie rozregulowała balansu.
+Minigra na wzór SET, grana przy ataku. Od portu `zestawy_od_portu` (3), gdy gildia wybierze taktykę, okno ataku proponuje „Gramy w Seta, potem atak” albo „Atakujemy od razu”. Plansza ma 8 kart i na start 2–4 sety; znaleziony set znika i wchodzą nowe karty, tak żeby zawsze był co najmniej jeden set (prawie zawsze dwa). Czas `zestawy_czas_s` (60 s), zła trójka to `zestawy_kara_s` (3 s) blokady. Każdy set daje `zestawy_premia` (+2) do tego ataku, liczy się najwyżej `zestawy_max` (3). Po czasie albo „Kończymy” od razu następuje rzut kośćmi z premią; gdy telefon zamknięto w trakcie, serwer kończy grę i wykonuje atak sam. Czas, blokadę i premię liczy serwer. W aplikacji jest objaśnienie z przykładami i trening bez punktów. Obrona portów 3–10 jest wyższa o 4, żeby premia nie rozregulowała balansu.
 
 ### Ranking
 

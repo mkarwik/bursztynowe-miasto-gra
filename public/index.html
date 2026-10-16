@@ -68,8 +68,8 @@ label.btn{ display:inline-flex; align-items:center; justify-content:center } .bt
 .zk{ display:flex; gap:4px; align-items:center; justify-content:center } .zk svg{ width:28px; height:28px } .zk.mini svg{ width:14px; height:14px } .zk.mini{ gap:2px; padding:5px 6px; background:#fff; border:1px solid var(--line); min-width:46px }
 .zgra .box{ max-width:440px; gap:10px } .zczas{ font-family:var(--display); font-weight:800; font-size:1.4rem; color:var(--sea); font-variant-numeric:tabular-nums }
 .zpasek{ height:6px; background:var(--tint) } .zpasek i{ display:block; height:100%; background:var(--amber); transition:width .2s linear }
-.zplansza{ display:grid; grid-template-columns:repeat(3,1fr); gap:8px } .zbtn{ background:#fff; border:2px solid var(--line); min-height:78px; display:flex; align-items:center; justify-content:center; cursor:pointer; padding:6px; border-radius:6px }
-.zbtn.wyb{ border-color:var(--sea); background:var(--tint); box-shadow:0 0 0 2px var(--sea) inset } .zbtn.czeka{ border-color:var(--sea) } .zbtn.dobry{ border-color:var(--ok); background:var(--ok-tint) } @media (prefers-reduced-motion:no-preference){ .zbtn.dobry .zk{ animation:wejdz .35s ease-out } @keyframes wejdz{ from{ transform:scale(.6); opacity:0 } to{ transform:none; opacity:1 } } } .zbtn.zly{ border-color:var(--bad); background:var(--bad-tint) }
+.zplansza{ display:grid; grid-template-columns:repeat(2,1fr); gap:8px } .zbtn{ background:#fff; border:2px solid var(--line); min-height:66px; display:flex; align-items:center; justify-content:center; cursor:pointer; padding:6px; border-radius:6px }
+.zbtn.wyb{ border-color:var(--sea); background:var(--tint); box-shadow:0 0 0 2px var(--sea) inset } .zbtn.czeka{ border-color:var(--sea) } .zbtn.dobry{ border-color:var(--ok); background:var(--ok-tint); box-shadow:0 0 0 2px var(--ok) inset } .zbtn.nowa{ border-color:var(--amber, #c8860b) } @media (prefers-reduced-motion:no-preference){ .zbtn.nowa .zk{ animation:wejdz .35s ease-out } @keyframes wejdz{ from{ transform:scale(.6); opacity:0 } to{ transform:none; opacity:1 } } } .zbtn.zly{ border-color:var(--bad); background:var(--bad-tint) }
 .zblok{ background:var(--bad-tint); color:var(--bad); font-weight:700; padding:8px; text-align:center } .zznal{ display:flex; flex-direction:column; gap:4px } .zprz{ display:flex; gap:6px; align-items:center }
 .zinstr{ max-height:90vh; overflow:auto } .zprzyklad{ border-left:4px solid var(--ok); padding:6px 10px; background:var(--ok-tint); display:flex; flex-direction:column; gap:6px } .zprzyklad.zle{ border-left-color:var(--bad); background:var(--bad-tint) } .zprzyklad p{ font-size:.92rem }
 .card.test{ border:2px dashed var(--sea); background:var(--tint) } .card.test .field{ margin-top:8px } .card.test select{ flex:1 }
@@ -116,15 +116,19 @@ function pam(k, v){ try{ if (v === undefined) return localStorage.getItem(k); if
 
 function urzadzenie(){ var u = pam('bm_urz'); if (!u){ u = Math.random().toString(36).slice(2) + Date.now().toString(36); pam('bm_urz', u); } return u; }
 function api(akcja){
+  var nr = S.nrZap = (S.nrZap || 0) + 1;
   var punkt = S.w && S.w.rola === 'punktowy' ? S.punkt : null;
   return fetch('/api', { method:'POST', headers:{'content-type':'application/json'}, body: JSON.stringify({ haslo: S.haslo, akcja: akcja || null, urz: urzadzenie(), punkt: punkt }) })
-    .then(function(r){ return r.json(); });
+    .then(function(r){ return r.json(); })
+    .then(function(o){ o._nr = nr; return o; });
 }
+// Odpowiedzi mogą przyjść w innej kolejności niż zapytania: starszy widok nie nadpisuje nowszego.
+function nowyWidok(o){ if (o._nr < (S.nrWid || 0)) return false; S.nrWid = o._nr; S.w = o.widok; return true; }
 function odswiez(cicho){
   if (!S.haslo) return Promise.resolve();
   return api(null).then(function(o){
     if (o.blad){ if (o.zleHaslo) wyloguj(o.blad); else if (!cicho) toast(o.blad, true); return; }
-    S.w = o.widok; if (!cicho || moznaPrzerysowac()) rysuj();
+    if (!nowyWidok(o)) return; if (!cicho || moznaPrzerysowac()) rysuj();
   }).catch(function(){ if (!cicho) toast('Brak połączenia z serwerem. Sprawdźcie internet.', true); });
 }
 function moznaPrzerysowac(){
@@ -140,7 +144,7 @@ function wykonaj(akcja){
   api(akcja).then(function(o){
     S.zajete = false;
     if (o.blad){ if (o.zleHaslo) return wyloguj(o.blad); toast(o.blad, true); return; }
-    S.w = o.widok; if (akcja && akcja.typ === 'zapisz_konfiguracje' && o.komunikat && o.komunikat.ok){ S.cfgEdycja = null; S.cfgOtwarte = null; }
+    nowyWidok(o); if (akcja && akcja.typ === 'zapisz_konfiguracje' && o.komunikat && o.komunikat.ok){ S.cfgEdycja = null; S.cfgOtwarte = null; }
     if (akcja && akcja.typ === 'zdjecie' && o.komunikat && o.komunikat.ok && S.wysylam){ delete S.foty[S.wysylam]; delete S.teksty[S.wysylam]; S.wysylam = null; }
     rysuj();
     var k = o.komunikat; if (!k) return;
@@ -324,14 +328,14 @@ function zestawyDostepne(w){ var z = w.zestawy; return !!(z && z.premia && !z.po
 function liniaZestawow(w){
   if (!zestawyDostepne(w)) return '';
   var z = w.zestawy;
-  return '<p class="small zlinia">Przy ataku możecie najpierw zagrać w <b>zestawy</b>: +' + z.premia + ' za każdy, najwyżej +' + (z.premia * z.max) + '. <button class="lnk" id="zJak">Jak grać?</button> <button class="lnk" id="zTren">Trening</button></p>';
+  return '<p class="small zlinia">Przy ataku możecie najpierw zagrać w <b>Seta</b>: +' + z.premia + ' za każdy, najwyżej +' + (z.premia * z.max) + '. <button class="lnk" id="zJak">Jak grać?</button> <button class="lnk" id="zTren">Trening</button></p>';
 }
 // Okno ataku: od 3. portu wybór „zestawy, potem atak” albo „atak od razu”.
 function atakOkno(d){
   var w = S.w, zest = zestawyDostepne(w), z = w.zestawy;
   $war.innerHTML = '<div class="modal" role="dialog" aria-modal="true"><div class="box"><h2>Atak: ' + esc(d.nazwa) + '</h2><p>' + esc(d.opis) + '</p>' +
-    (zest ? '<div class="zpyt"><b>Najpierw zestawy?</b> ' + z.czas + ' sekund, każdy zestaw +' + z.premia + ' do tego ataku (najwyżej +' + (z.premia * z.max) + '). Nie wyjdzie? Atak i tak się odbędzie.</div>' : '') +
-    '<div class="btns col">' + (zest ? '<button class="btn amber" id="aZest">Gramy w zestawy, potem atak</button><button class="btn" id="aTak">Atakujemy od razu</button>' : '<button class="btn amber" id="aTak">Atakujemy</button>') +
+    (zest ? '<div class="zpyt"><b>Najpierw Set?</b> ' + z.czas + ' sekund, każdy znaleziony set +' + z.premia + ' do tego ataku (najwyżej +' + (z.premia * z.max) + '). Nie wyjdzie? Atak i tak się odbędzie.</div>' : '') +
+    '<div class="btns col">' + (zest ? '<button class="btn amber" id="aZest">Gramy w Seta, potem atak</button><button class="btn" id="aTak">Atakujemy od razu</button>' : '<button class="btn amber" id="aTak">Atakujemy</button>') +
     '<button class="btn ghost" id="aNie">Anuluj</button></div></div></div>';
   document.getElementById('aTak').onclick = function(){ wykonaj({ typ:'atak', taktyka: d.atak }); };
   document.getElementById('aNie').onclick = zamknij;
@@ -341,14 +345,14 @@ function atakOkno(d){
 function zestawInstrukcja(taktyka){
   var p = function(a, b, c){ return '<div class="zprz">' + kartaZ(a, 'mini') + kartaZ(b, 'mini') + kartaZ(c, 'mini') + '</div>'; };
   var K = function(k, s, l){ return { kolor: k, ksztalt: s, liczba: l }; };
-  $war.innerHTML = '<div class="modal" role="dialog" aria-modal="true"><div class="box zinstr"><h2>Jak grać w zestawy</h2>' +
+  $war.innerHTML = '<div class="modal" role="dialog" aria-modal="true"><div class="box zinstr"><h2>Jak grać w Seta</h2>' +
     '<p>Każda karta ma <b>kolor</b>, <b>rysunek</b> (bursztyn, beczka albo statek) i <b>liczbę</b>.</p>' +
-    '<p><b>Zestaw to 3 karty, w których każda z tych cech jest albo na wszystkich taka sama, albo na każdej inna.</b></p>' +
+    '<p><b>Set to 3 karty, w których każda z tych cech jest albo na wszystkich taka sama, albo na każdej inna.</b></p>' +
     '<div class="zprzyklad ok">' + p(K(2, 0, 1), K(2, 0, 2), K(2, 0, 3)) + '<p>✓ Kolor ten sam, rysunek ten sam, liczba za każdym razem inna.</p></div>' +
     '<div class="zprzyklad ok">' + p(K(0, 0, 1), K(1, 1, 2), K(2, 2, 3)) + '<p>✓ Wszystko inne: kolory, rysunki i liczby.</p></div>' +
     '<div class="zprzyklad zle">' + p(K(1, 0, 2), K(1, 1, 2), K(0, 2, 2)) + '<p>✗ Dwa niebieskie i jeden bursztynowy. Kolor nie jest ani taki sam, ani cały inny.</p></div>' +
-    '<p>Klikacie 3 karty. <b>Znaleziony zestaw znika, a na jego miejsce wchodzą nowe karty.</b> Na planszy zawsze jest co najmniej jeden zestaw. Macie <b>' + (S.w.zestawy ? S.w.zestawy.czas : 60) + ' sekund</b>, zła trójka to ' + (S.w.zestawy ? S.w.zestawy.kara : 3) + ' sekundy przerwy.</p>' +
-    '<p>Po czasie albo po „Kończymy” od razu atakujecie, z premią <b>+' + (S.w.zestawy ? S.w.zestawy.premia : 2) + ' za każdy zestaw</b>.</p>' +
+    '<p>Klikacie 3 karty. <b>Znaleziony set znika, a na jego miejsce wchodzą nowe karty.</b> Na planszy zawsze jest jakiś set, zwykle dwa albo więcej. Macie <b>' + (S.w.zestawy ? S.w.zestawy.czas : 60) + ' sekund</b>, zła trójka to ' + (S.w.zestawy ? S.w.zestawy.kara : 3) + ' sekundy przerwy.</p>' +
+    '<p>Po czasie albo po „Kończymy” od razu atakujecie, z premią <b>+' + (S.w.zestawy ? S.w.zestawy.premia : 2) + ' za każdy set</b>.</p>' +
     '<div class="btns">' + (taktyka ? '<button class="btn amber" id="zSerio">Gramy na serio</button>' : '') + '<button class="btn ghost" id="zTr2">Trening</button><button class="btn ghost" id="zZam">Zamknij</button></div></div></div>';
   pam('bm_zest', '1');
   var zs = document.getElementById('zSerio'); if (zs) zs.onclick = function(){ zestawStart(taktyka); };
@@ -358,7 +362,7 @@ function zestawInstrukcja(taktyka){
 // Akcje zestawów idą osobno (nie przez wykonaj), żeby nie zamykać ekranu gry.
 function zestawApi(akcja, cb){
   if (S.zajete) return; S.zajete = true;
-  api(akcja).then(function(o){ S.zajete = false; if (o.blad){ toast(o.blad, true); return; } S.w = o.widok;
+  api(akcja).then(function(o){ S.zajete = false; if (o.blad){ toast(o.blad, true); return; } nowyWidok(o);
     var g = S.w.zestawy && S.w.zestawy.gra; S.zBlok = g && g.blokadaMs ? Date.now() + g.blokadaMs : 0;   // blokadę po pomyłce liczy serwer
     cb && cb(o.komunikat || {}); })
     .catch(function(){ S.zajete = false; toast('Brak połączenia. Spróbujcie jeszcze raz.', true); });
@@ -374,8 +378,8 @@ function zestawTrening(){
 function zCzy(a, b, c){ return [0, 1, 2].every(function(i){ var f = function(k){ return Math.floor(k / Math.pow(3, i)) % 3; }; return (f(a) + f(b) + f(c)) % 3 === 0; }) && a !== b && b !== c && a !== c; }
 function zZestawy(k){ var o = []; for (var i = 0; i < k.length; i++) for (var j = i + 1; j < k.length; j++) for (var l = j + 1; l < k.length; l++) if (zCzy(k[i], k[j], k[l])) o.push([i, j, l]); return o; }
 function zKarta(k){ return { kolor: k % 3, ksztalt: Math.floor(k / 3) % 3, liczba: Math.floor(k / 9) + 1, k: k }; }
-function zUklad(){ for (var p = 0; p < 5000; p++){ var t = []; for (var i = 0; i < 27; i++) t.push(i); for (i = 26; i > 0; i--){ var j = Math.floor(Math.random() * (i + 1)), x = t[i]; t[i] = t[j]; t[j] = x; } var k = t.slice(0, 9); if (zZestawy(k).length === 3) return k; } return t.slice(0, 9); }
-// jak na serwerze: w miejsce znalezionego zestawu nowe karty, tak żeby na planszy były 2–4 zestawy (co najmniej 1)
+function zUklad(){ for (var p = 0; p < 5000; p++){ var t = []; for (var i = 0; i < 27; i++) t.push(i); for (i = 26; i > 0; i--){ var j = Math.floor(Math.random() * (i + 1)), x = t[i]; t[i] = t[j]; t[j] = x; } var k = t.slice(0, 8); var n = zZestawy(k).length; if (n >= 2 && n <= 4) return k; } return t.slice(0, 8); }
+// jak na serwerze: w miejsce znalezionego seta nowe karty, tak żeby na planszy były 2–4 sety (co najmniej 1)
 function zUzup(k, idx){
   var pula = []; for (var x = 0; x < 27; x++) if (k.indexOf(x) < 0) pula.push(x);
   var tr = []; for (var a = 0; a < pula.length; a++) for (var b = a + 1; b < pula.length; b++) for (var c = b + 1; c < pula.length; c++) tr.push([pula[a], pula[b], pula[c]]);
@@ -385,17 +389,18 @@ function zUzup(k, idx){
   return zapas || zUklad();
 }
 function zGra(){ return S.zTren || (S.w.zestawy && S.w.zestawy.gra); }
-function zestawEkran(){
+function zestawEkran(pokaz){
   var g = zGra(); if (!g){ zamknij(); return; }
+  var karty = pokaz && pokaz.karty ? pokaz.karty : g.karty;
   var tren = !!S.zTren, z = S.w.zestawy || {};
   if (!tren && S.zKoniecCzasu == null) S.zKoniecCzasu = Date.now() + g.zostaloMs;
   var znal = g.znal.length, premia = tren ? 0 : Math.min(znal, z.max) * z.premia;
   var maks = tren ? 0 : z.max * z.premia;
   var h = '<div class="modal zgra" role="dialog" aria-modal="true"><div class="box">' +
-    '<div class="row"><span class="name">' + (tren ? 'Trening' : 'Zestawy') + '</span><span class="zczas" id="zCzas"></span></div>' +
+    '<div class="row"><span class="name">' + (tren ? 'Trening' : 'Set') + '</span><span class="zczas" id="zCzas"></span></div>' +
     '<div class="zpasek"><i id="zPasek"></i></div>' +
     '<p class="sub">Znalezione: <b>' + znal + '</b>' + (tren ? ' · bez punktów' : ' · premia <b>+' + premia + '</b>' + (premia >= maks ? ' (maksimum)' : ' z +' + maks)) + '</p>' +
-    '<div class="zplansza">' + g.karty.map(function(c, i){ return '<button class="zbtn' + (S.zWyb.indexOf(i) >= 0 ? ' wyb' : '') + '" data-zk="' + i + '">' + kartaZ(c) + '</button>'; }).join('') + '</div>' +
+    '<div class="zplansza">' + karty.map(function(c, i){ return '<button class="zbtn' + (S.zWyb.indexOf(i) >= 0 ? ' wyb' : '') + (pokaz && pokaz.idx.indexOf(i) >= 0 ? ' ' + pokaz.kl : '') + '" data-zk="' + i + '">' + kartaZ(c) + '</button>'; }).join('') + '</div>' +
     '<div class="zblok" id="zBlok" hidden></div>' +
     (znal ? '<div class="zznal">' + g.znal.slice(-4).map(function(t){ return '<div class="zprz">' + t.map(function(c){ return kartaZ(c, 'mini'); }).join('') + '</div>'; }).join('') + '</div>' : '') +
     '<div class="btns"><button class="btn ghost" id="zKoniec">' + (tren ? 'Zakończ trening' : 'Kończymy') + '</button></div></div></div>';
@@ -406,27 +411,37 @@ function zestawEkran(){
   zZegar();
 }
 function zKlik(i){
-  if ((S.zBlok || 0) > Date.now() || (S.zajete && !S.zTren)) return;   // w trakcie sprawdzania kliknięcia czekają
+  if ((S.zBlok || 0) > Date.now() || (S.zPauza || 0) > Date.now() || (S.zajete && !S.zTren)) return;   // w trakcie sprawdzania i podmiany kart kliknięcia czekają
   var k = S.zWyb.indexOf(i); if (k >= 0) S.zWyb.splice(k, 1); else S.zWyb.push(i);
   if (S.zWyb.length < 3){ zestawEkran(); return; }
   var t = S.zWyb.slice(); S.zWyb = [];
   if (S.zTren){
     var g = S.zTren;
     if (zCzy(g.karty[t[0]].k, g.karty[t[1]].k, g.karty[t[2]].k)){
+      var stareT = g.karty;
       g.znal.push(t.map(function(i){ return g.karty[i]; }));
       g.karty = zUzup(g.karty.map(function(c){ return c.k; }), t).map(zKarta);
-      zestawEkran(); zMig(t, 'dobry');
+      zPodmiana(stareT, t);
     } else { S.zBlok = Date.now() + 3000; zMig(t, 'zly'); setTimeout(zestawEkran, 450); }
     return;
   }
   zMig(t, 'czeka');
-  zestawApi({ typ:'zestaw_wybor', karty: t }, function(k){
+  var stare = zGra().karty, kod = function(c){ return c.kolor + 3 * c.ksztalt + 9 * (c.liczba - 1); };
+  zestawApi({ typ:'zestaw_wybor', karty: t, widziane: t.map(function(i){ return kod(stare[i]); }) }, function(k){
     var z = k.zestaw || {};
     if (z.koniec) return zWynik(z.koniec, k);
+    if (z.stare){ zestawEkran(); toast(k.tekst, true); return; }   // plansza się zmieniła: pokazujemy aktualną, bez kary
     if (z.zly){ zestawEkran(); zMig(t, 'zly'); return; }
-    if (z.dobry){ zestawEkran(); zMig(t, 'dobry'); try{ navigator.vibrate && navigator.vibrate(60); }catch(e){} return; }   // na tych miejscach są już nowe karty
+    if (z.dobry){ zPodmiana(stare, t); try{ navigator.vibrate && navigator.vibrate(60); }catch(e){} return; }
     zestawEkran();
   });
+}
+// Znaleziony set: chwilę widać go na zielono, potem na te miejsca wjeżdżają nowe karty.
+function zPodmiana(stare, t){
+  var nr = S.zPodNr = (S.zPodNr || 0) + 1;
+  S.zPauza = Date.now() + 700;
+  zestawEkran({ karty: stare, idx: t, kl: 'dobry' });
+  setTimeout(function(){ if (S.zPodNr === nr && zGra() && $war.querySelector('.zgra')) zestawEkran({ idx: t, kl: 'nowa' }); }, 700);
 }
 function zMig(t, kl){ t.forEach(function(i){ var e = $war.querySelector('[data-zk="' + i + '"]'); if (e){ e.classList.remove('wyb'); e.classList.add(kl); } }); }
 function zZegar(){
@@ -437,7 +452,7 @@ function zZegar(){
     var c = document.getElementById('zCzas'), p = document.getElementById('zPasek'), bl = document.getElementById('zBlok');
     if (c) c.textContent = Math.ceil(ms / 1000) + ' s';
     if (p) p.style.width = (100 * ms / calosc) + '%';
-    if (bl){ var r = (S.zBlok || 0) - Date.now(); bl.hidden = r <= 0; if (r > 0) bl.textContent = 'To nie był zestaw. Chwila… ' + Math.ceil(r / 1000); }
+    if (bl){ var r = (S.zBlok || 0) - Date.now(); bl.hidden = r <= 0; if (r > 0) bl.textContent = 'To nie był set. Chwila… ' + Math.ceil(r / 1000); }
     if (ms <= 0){ clearInterval(S.zTimer); zKoniec(); }
   };
   tik(); S.zTimer = setInterval(tik, 200);
@@ -445,14 +460,14 @@ function zZegar(){
 function zKoniec(){
   clearInterval(S.zTimer);
   if (S.zTren){ var n = S.zTren.znal.length; S.zTren = null; S.zBlok = 0;
-    $war.innerHTML = '<div class="modal"><div class="box"><h2>Koniec treningu</h2><p>Znaleźliście ' + n + (n === 1 ? ' zestaw' : n > 1 && n < 5 ? ' zestawy' : ' zestawów') + '. W treningu nie ma punktów.</p><div class="btns"><button class="btn" id="zOk">OK</button></div></div></div>';
+    $war.innerHTML = '<div class="modal"><div class="box"><h2>Koniec treningu</h2><p>Znaleźliście ' + n + (n === 1 ? ' set' : n > 1 && n < 5 ? ' sety' : ' setów') + '. W treningu nie ma punktów.</p><div class="btns"><button class="btn" id="zOk">OK</button></div></div></div>';
     document.getElementById('zOk').onclick = function(){ zamknij(); rysuj(); }; return; }
   zestawApi({ typ:'zestaw_koniec' }, function(k){ zWynik((k.zestaw && k.zestaw.koniec) || { ile: 0, premia: 0 }, k); });
 }
 function zWynik(w, k){
   clearInterval(S.zTimer); S.zKoniecCzasu = null; S.zBlok = 0; S.zWyb = [];
   $war.innerHTML = '<div class="modal"><div class="box ' + (w.premia ? 'win' : '') + '"><h2>' + (w.premia ? 'Premia +' + w.premia : 'Bez premii') + '</h2>' +
-    '<p>' + (w.ile ? 'Znaleźliście ' + w.ile + (w.ile === 1 ? ' zestaw' : w.ile < 5 ? ' zestawy' : ' zestawów') + '. ' : 'Tym razem bez zestawu. ') + (k && k.atak ? 'Teraz atak!' : esc(k && k.tekst || '')) + '</p>' +
+    '<p>' + (w.ile ? 'Znaleźliście ' + w.ile + (w.ile === 1 ? ' set' : w.ile < 5 ? ' sety' : ' setów') + '. ' : 'Tym razem bez seta. ') + (k && k.atak ? 'Teraz atak!' : esc(k && k.tekst || '')) + '</p>' +
     '<div class="btns"><button class="btn amber" id="zOk">' + (k && k.atak ? 'Rzucamy!' : 'OK') + '</button></div></div></div>';
   document.getElementById('zOk').onclick = function(){ zamknij(); S.tab = 'atak'; rysuj(); if (k && k.atak) wynikAtaku(k); };
 }
@@ -711,7 +726,7 @@ function kEdycja(w){
   var chk = function(attr, on, label){ return '<label class="edc"><input type="checkbox" ' + attr + (on ? ' checked' : '') + '><span>' + esc(label) + '</span></label>'; };
   var h = '<h2>Edycja gildii</h2><p class="sub">Na wypadek awarii lub pomyłki: można dać albo zabrać statek, budowlę, port, punkt. Każda zmiana trafia do dziennika.</p>' +
     '<form class="card" id="fEd" novalidate><label for="edG">Gildia</label><select id="edG">' + c.gildie.map(function(x, i){ return '<option value="' + i + '"' + (i === g ? ' selected' : '') + '>' + esc(x.nazwa) + '</option>'; }).join('') + '</select>' +
-    '<h3>Skarbiec i porty</h3><div class="edg">' + num('id="ed_b"', st.b, 'Bursztyn w skarbcu') + num('id="ed_z"', st.z, 'Zdobyty w całej grze', 0) + num('id="ed_p"', st.p, 'Zdobyte porty (0 do ' + c.porty.length + ')', 0) + num('id="ed_fail"', st.fail, 'Nieudane ataki na następny port', 0) + num('id="ed_premia"', st.premia || 0, 'Premia z zestawów do ataku', 0) + '</div>' +
+    '<h3>Skarbiec i porty</h3><div class="edg">' + num('id="ed_b"', st.b, 'Bursztyn w skarbcu') + num('id="ed_z"', st.z, 'Zdobyty w całej grze', 0) + num('id="ed_p"', st.p, 'Zdobyte porty (0 do ' + c.porty.length + ')', 0) + num('id="ed_fail"', st.fail, 'Nieudane ataki na następny port', 0) + num('id="ed_premia"', st.premia || 0, 'Premia z Seta do ataku', 0) + '</div>' +
     '<h3>Statki</h3><div class="edg">' + c.statki.map(function(x){ return num('data-eds="' + esc(x.id) + '"', st.s[x.id] || 0, x.nazwa, 0); }).join('') + '</div>' +
     '<h3>Budowle</h3><div class="edg">' + c.budowle.map(function(x){ return chk('data-edb="' + esc(x.id) + '"', !!st.bud[x.id], x.nazwa); }).join('') + '</div>' +
     '<h3>Punkty żywe: liczba wizyt</h3><div class="edg">' + c.punkty_zywe.map(function(x, i){ return num('data-edzy="' + i + '"', st.zy[i] || 0, x.nazwa, 0); }).join('') + '</div>' +
@@ -734,7 +749,7 @@ function zbierzEdycje(){
 var CFG_OPISY = { ustawienia:'Ustawienia', gildie:'Gildie i hasła', statki:'Statki', budowle:'Budowle', porty:'Porty (99 oznacza „nie da się”)', punkty_martwe:'Punkty martwe', punkty_zywe:'Punkty żywe', znajdzki:'Kody znajdziek (jeden w wierszu)' };
 function kCennik(w){
   if (!S.cfgEdycja) S.cfgEdycja = JSON.parse(JSON.stringify(w.konfiguracja));
-  var c = S.cfgEdycja, h = '<h2>Cennik i ustawienia</h2><p class="sub">Zmiany działają od razu po zapisaniu. W trakcie gry zmieniajcie tylko to, co konieczne.</p><div class="cfg">';
+  var c = S.cfgEdycja, h = '<h2>Cennik i ustawienia</h2><div class="card"><p class="sub">Po nowej wersji aplikacji: wczytaj statki, budowle, porty i liczby z aplikacji. Gildie, hasła, punkty, kody i godziny zostają.</p><div class="btns"><button class="btn amber" id="domCfg">Przywróć domyślny cennik</button></div></div><p class="sub">Zmiany działają od razu po zapisaniu. W trakcie gry zmieniajcie tylko to, co konieczne.</p><div class="cfg">';
   Object.keys(CFG_OPISY).forEach(function(k){
     var v = c[k]; h += '<details' + (k === (S.cfgOtwarte || 'gildie') ? ' open' : '') + '><summary>' + esc(CFG_OPISY[k]) + '</summary>';
     if (k === 'znajdzki') h += '<textarea data-c="znajdzki" rows="10" aria-label="Kody znajdziek">' + esc(v.join('\n')) + '</textarea>';
@@ -752,7 +767,7 @@ function kCennik(w){
     }
     h += '</details>';
   });
-  return h + '</div><div class="btns"><button class="btn amber" id="zapiszCfg">Zapisz zmiany</button><button class="btn ghost" id="domCfg">Przywróć domyślny cennik</button></div><p class="small">„pilnuj_godzin” na „nie” wyłącza sprawdzanie godzin, co przydaje się do prób. Przed grą ustawcie „tak”.</p>';
+  return h + '</div><div class="btns"><button class="btn amber" id="zapiszCfg">Zapisz zmiany</button></div><p class="small">„pilnuj_godzin” na „nie” wyłącza sprawdzanie godzin, co przydaje się do prób. Przed grą ustawcie „tak”.</p>';
 }
 function zbierzCennik(){
   var c = JSON.parse(JSON.stringify(S.cfgEdycja || S.w.konfiguracja)), pola = $app.querySelectorAll('[data-c]'), zle = '';
@@ -794,7 +809,7 @@ function kGra(w){
 var zap = pam('bm_haslo');
 if (zap){ S.haslo = zap; api(null).then(function(o){ if (o.blad){ S.haslo = ''; pam('bm_haslo', null); } else S.w = o.widok; rysuj(); }).catch(function(){ S.haslo = ''; rysuj(); toast('Brak połączenia z serwerem.', true); }); }
 else rysuj();
-setInterval(function(){ if (S.haslo && S.w && !document.hidden) odswiez(true); }, 8000);
+setInterval(function(){ if (S.haslo && S.w && !document.hidden && !$war.querySelector('.zgra')) odswiez(true); }, 8000);
 document.addEventListener('visibilitychange', function(){ if (!document.hidden && S.haslo && S.w) odswiez(true); });
 </script>
 </body>
