@@ -23,6 +23,7 @@ const PLIK_STAN = path.join(DATA_DIR, 'state.json');
 const PLIK_DZIENNIK = path.join(DATA_DIR, 'dziennik.jsonl');
 const PLIK_ZGL = path.join(DATA_DIR, 'zgloszenia.json');
 const KAT_ZDJ = path.join(DATA_DIR, 'zdjecia');
+const PLIK_TEST = path.join(DATA_DIR, 'test.json');
 const DOMYSLNA = JSON.parse(fs.readFileSync(path.join(__dirname, 'config.default.json'), 'utf8'));
 const STRONA = fs.readFileSync(path.join(__dirname, 'public', 'index.html'));
 
@@ -90,6 +91,7 @@ function rola(haslo) {
   if (!h) return null;
   if (h === HASLO_KADRY) return { rola: 'kadra' };
   if (h === String(cfg.ustawienia.haslo_punktowych || '').trim()) return { rola: 'punktowy' };
+  if (String(cfg.ustawienia.haslo_testowe || '').trim() && h === String(cfg.ustawienia.haslo_testowe).trim()) return { rola: 'test' };
   const i = cfg.gildie.findIndex(g => String(g.haslo || '').trim() === h);
   return i >= 0 ? { rola: 'gildia', i } : null;
 }
@@ -196,6 +198,48 @@ function decyzja(a) {
   return { ok: true, tekst: nazwa + ': odrzucone.' };
 }
 
+// ---------- konto testowe: pełna gra dla jednej osoby, bez wpływu na gildie, ranking i dziennik ----------
+// Działa zawsze (bez pilnowania godzin), punkt martwy sprawdza się automatycznie, a przyciski testowe dają bursztyn, porty i punkty żywe.
+let test = wczytajJson(PLIK_TEST, null);
+const testDz = [];
+function testNowy() { const st = E.nowyStan(cfg); st.b = st.z = 500; return st; }
+function testZapisz() { zapiszAtomowo(PLIK_TEST, JSON.stringify(test)); }
+function testCfg() { const c = JSON.parse(JSON.stringify(cfg)); c.ustawienia.pilnuj_godzin = false; c.gildie = c.gildie.concat([{ nazwa: 'Konto testowe', haslo: '' }]); return c; }
+function testAkcja(a) {
+  if (!test) test = testNowy();
+  for (const x of cfg.statki) if (typeof test.s[x.id] !== 'number') test.s[x.id] = 0;
+  const c = testCfg(), t = teraz(), u = c.ustawienia;
+  let w;
+  if (a.typ === 'test_reset') { test = testNowy(); testDz.length = 0; w = { ok: true, msg: 'Konto testowe od nowa: 500 bursztynu, 1 sznika.', st: test }; }
+  else if (a.typ === 'test_bursztyn') { const ile = Math.max(-5000, Math.min(5000, Math.trunc(Number(a.ile) || 200))); test.b += ile; test.z = Math.max(0, test.z + ile); w = { ok: true, msg: 'Bursztyn ' + (ile > 0 ? '+' : '') + ile + '.', st: test }; }
+  else if (a.typ === 'test_port') { const p = Math.max(0, Math.min(c.porty.length, Math.trunc(Number(a.p) || 0))); test.p = p; test.fail = 0; test.zestaw = null; w = { ok: true, msg: 'Następny port: ' + (c.porty[p] ? (p + 1) + '. ' + c.porty[p].nazwa : 'wszystkie zdobyte') + '.', st: test }; }
+  else if (a.typ === 'test_zywy') { const k = Math.trunc(Number(a.punkt) || 0); w = E.akcja(c, test, { typ: 'zywy', punkt: k, ile: Math.trunc(Number(a.ile) || 40) }, { min: t.min, kosc, ms: Date.now() }); }
+  else if (a.typ === 'zdjecie') {
+    // bez kadry: tekst sprawdza się sam, samo zdjęcie zalicza się od razu
+    const pkt = Number(a.punkt), tekst = String(a.tekst || '').trim();
+    if (!tekst && a.foto) w = E.akcja(c, test, { typ: 'martwy_ok', punkt: pkt }, { min: t.min, kosc, ms: Date.now() });
+    else w = E.akcja(c, test, { typ: 'martwy', punkt: pkt, odpowiedz: tekst }, { min: t.min, kosc, ms: Date.now() });
+    if (w.ok) w.msg += ' (konto testowe: sprawdzone automatycznie)';
+  }
+  else if (['kup', 'sprzedaj', 'atak', 'znajdzka', 'zestaw_start', 'zestaw_wybor', 'zestaw_koniec'].includes(a.typ)) w = E.akcja(c, test, a, { min: t.min, kosc, ms: Date.now() });
+  else return { blad: 'Na koncie testowym tego nie ma.' };
+  if (w.ok) { test = w.st; testZapisz(); }
+  if (!(a.typ === 'zestaw_wybor' && !w.zestawKoniec)) { testDz.push({ czas: t.czas.slice(0, 5), opis: opisAkcji(a), wynik: w.msg, ok: w.ok }); if (testDz.length > 30) testDz.shift(); }
+  return { ok: w.ok && !w.bledna, tekst: w.msg, kosci: w.kosci || null, wygrana: w.wygrana, atak: a.typ === 'atak' && !!w.kosci,
+    zestaw: a.typ.startsWith('zestaw') ? { dobry: !!w.zestawDobry, zly: !!w.zestawZly, juz: !!w.zestawJuz, koniec: w.zestawKoniec || null } : undefined };
+}
+function testWidok() {
+  if (!test) { test = testNowy(); testZapisz(); }
+  const c = testCfg(), t = teraz();
+  if (test.zestaw && Date.now() > test.zestaw.start + (c.ustawienia.zestawy_czas_s || 60) * 1000 + 1500) testAkcja({ typ: 'zestaw_koniec' });
+  const w = E.widokGildii(c, stany.concat([test]), stany.length, t.min);
+  w.rola = 'gildia'; w.test = true; w.teraz = t.czas.slice(0, 5); w.zgloszenia = [];
+  w.dziennik = testDz.slice().reverse().slice(0, 15);
+  w.martwe.forEach(p => { p.czeka = false; });
+  w.zywePunkty = cfg.punkty_zywe.map(p => p.nazwa);
+  return w;
+}
+
 // Kto i kiedy ostatnio był w aplikacji. Tylko w pamięci: po restarcie serwera liczy się od nowa.
 const ob = { gildie: {}, punkty: {}, urz: {}, start: Date.now(), eksport: null };
 function obecnosc(r, body) {
@@ -221,6 +265,7 @@ const zglDlaKadry = () => zgloszenia.slice(-300).map(z => {
 
 function widok(r) {
   const t = teraz();
+  if (r.rola === 'test') return testWidok();
   if (r.rola === 'gildia') {
     // gra w zestawy po czasie kończy się sama, nawet gdy telefon był zamknięty
     const z = stany[r.i].zestaw;
@@ -257,10 +302,11 @@ function widok(r) {
 function api(body) {
   const r = rola(body.haslo);
   if (!r) return { blad: 'Złe hasło.', zleHaslo: true };
-  obecnosc(r, body);
+  if (r.rola !== 'test') obecnosc(r, body);
   const a = body.akcja;
   let komunikat = null;
-  if (a && typeof a === 'object') {
+  if (a && typeof a === 'object' && r.rola === 'test') { const o = testAkcja(a); if (o.blad) return o; komunikat = o; }
+  else if (a && typeof a === 'object') {
     if (r.rola === 'gildia') {
       if (a.typ === 'zdjecie') komunikat = noweZgloszenie(r.i, a);
       else if (!['kup', 'sprzedaj', 'atak', 'znajdzka', 'zestaw_start', 'zestaw_wybor', 'zestaw_koniec'].includes(a.typ)) return { blad: 'Gildia nie może tego zgłosić.' };
@@ -295,9 +341,9 @@ function api(body) {
         }
       } else if (a.typ === 'domyslny_cennik') {
         // statki, budowle, porty i liczby z nowej wersji aplikacji; gildie, hasła, punkty, kody i godziny zostają
-        const zost = ['haslo_punktowych', 'pilnuj_godzin', 'start_gry', 'ostatnie_10_min', 'koniec_gry'];
+        const zost = ['haslo_punktowych', 'haslo_testowe', 'pilnuj_godzin', 'start_gry', 'ostatnie_10_min', 'koniec_gry'];
         const nowy = JSON.parse(JSON.stringify(DOMYSLNA));
-        for (const k of zost) nowy.ustawienia[k] = cfg.ustawienia[k];
+        for (const k of zost) if (k in cfg.ustawienia) nowy.ustawienia[k] = cfg.ustawienia[k];
         for (const k of ['gildie', 'punkty_martwe', 'punkty_zywe', 'znajdzki']) nowy[k] = cfg[k];
         cfg = nowy; zapiszAtomowo(PLIK_KONFIG, JSON.stringify(cfg, null, 1)); dopasujStany(); zapiszStan();
         wpis(null, 'kadra', 'Przywrócenie domyślnego cennika', { ok: true, msg: 'Statki, budowle, porty i liczby jak w nowej wersji.', delta: 0 });

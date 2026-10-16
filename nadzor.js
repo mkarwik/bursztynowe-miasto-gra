@@ -45,6 +45,7 @@ function analiza(cfg, stany, dziennik, ob, min, ms) {
   // ---------- przed grą: lista kontrolna ----------
   const kontrola = [];
   if (String(u.haslo_punktowych).trim() === 'punkt-zmien-mnie') kontrola.push('Hasło punktowych jest domyślne (punkt-zmien-mnie).');
+  if (String(u.haslo_testowe || '').trim() === 'test-zmien-mnie') kontrola.push('Hasło konta testowego jest domyślne (test-zmien-mnie). Zmieńcie je albo wyczyśćcie, żeby wyłączyć konto testowe.');
   const domyslneG = cfg.gildie.filter(g => /-zmien$/.test(String(g.haslo))).length;
   if (domyslneG) kontrola.push(domyslneG + ' gildii ma domyślne hasło (…-zmien).');
   const odpDomyslne = cfg.punkty_martwe.filter(p => /^odp\d+$/i.test(String(p.odpowiedz).trim())).length;

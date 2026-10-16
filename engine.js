@@ -421,6 +421,7 @@ function sprawdzKonfiguracje(cfg) {
   const hasla = cfg.gildie.map(g => String(g.haslo || '').trim());
   if (hasla.some(h => !h)) b.push('Każda gildia musi mieć hasło.');
   if (new Set(hasla.concat([String(u.haslo_punktowych).trim()])).size !== hasla.length + 1) b.push('Hasła gildii i punktowych muszą być różne.');
+  if (String(u.haslo_testowe || '').trim() && hasla.concat([String(u.haslo_punktowych).trim()]).includes(String(u.haslo_testowe).trim())) b.push('Hasło testowe musi być inne niż hasła gildii i punktowych.');
   cfg.statki.forEach(x => { for (const k of ['cena', 'sila', 'zasieg', 'zwrot', 'naprawa']) if (typeof x[k] !== 'number') b.push('Statek „' + x.nazwa + '”: pole „' + k + '” musi być liczbą.'); if (!x.id) b.push('Statek bez id.'); });
   cfg.budowle.forEach(x => { if (typeof x.cena !== 'number') b.push('Budowla „' + x.nazwa + '”: cena musi być liczbą.'); });
   if (u.zywy_min > u.zywy_max) b.push('„zywy_min” nie może być większe niż „zywy_max”.');

@@ -26,6 +26,10 @@ Minigra na wzór SET. Od portu `zestawy_od_portu` (3) gildia może przed atakiem
 
 Przycisk **„Przywróć domyślny cennik”** (zakładka Cennik) wczytuje statki, budowle, porty i liczby z nowej wersji aplikacji, zostawiając gildie, hasła, punkty, kody i godziny.
 
+### Konto testowe
+
+Hasło z ustawienia `haslo_testowe` (domyślnie `test-zmien-mnie`) otwiera osobne konto do prób: 500 bursztynu na start, działa o każdej porze, nie trafia do rankingu, dziennika ani kolejki zgłoszeń. Na górze ma przyciski: +200 bursztynu, wybór następnego portu, zaliczenie punktu żywego i „Od nowa”. Punkty martwe sprawdzają się tam same. Puste hasło wyłącza konto.
+
 ### Nadzór i analiza AI
 
 Zakładka **Nadzór** w widoku kadry działa bez żadnych ustawień. Reguły sprawdzają na bieżąco: gildie bez kontaktu, gildie w tyle albo podejrzanie szybkie, długi dług, serie porażek, punkty martwe z dużą liczbą złych odpowiedzi (z najczęstszą złą odpowiedzią), błędne kody znajdziek, punkty żywe, które dawno nic nie wpisały, różnice w ocenianiu i tempo całej gry w porównaniu z symulacją. Przed grą pokazuje listę rzeczy do uzupełnienia.

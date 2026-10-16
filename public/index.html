@@ -65,13 +65,14 @@ td.n,th.n{ text-align:right; font-variant-numeric:tabular-nums; white-space:nowr
 tr.me td{ background:var(--amber-tint); font-weight:700 } tr.done td{ color:var(--mute) } tr.cur td{ background:var(--tint); font-weight:700 }
 .scroll{ overflow-x:auto }
 label.btn{ display:inline-flex; align-items:center; justify-content:center } .btn.ico{ min-width:48px; padding:0 10px; font-size:1.2rem } .ile{ font-family:var(--body); font-size:.95rem; color:var(--mute); font-weight:500 } .lnk{ border:0; background:none; padding:2px 0; color:var(--sea); text-decoration:underline; font-size:.85rem; cursor:pointer } .lista .row{ padding:7px 0; border-bottom:1px solid var(--line); gap:10px; flex-wrap:nowrap } .lista .row > span:first-child{ flex:1; min-width:0 } .lista .row > .btn, .lista .row > .pill{ flex:none } .lista .row:last-child{ border-bottom:0 } .card.done{ opacity:.6 } .miniat{ display:flex; gap:10px; align-items:center; margin-top:8px } .miniat img{ height:64px; border:1px solid var(--line) } table.flota td{ vertical-align:middle } table.flota .btn.mini{ min-width:58px } .zdj img{ display:block; width:100%; max-height:420px; object-fit:contain; background:var(--tint); margin:8px 0 } .zdj .opis{ font-size:1.05rem; margin:6px 0 } .foto{ margin:8px 0; display:flex; flex-direction:column; gap:8px; align-items:flex-start } .foto img{ max-width:100%; max-height:260px; border:1px solid var(--line) } textarea{ width:100%; padding:10px; border:1px solid var(--line); background:#fff } .zgl{ margin-top:10px; border-top:1px solid var(--line); padding-top:6px } .zgl .row{ padding:5px 0; align-items:flex-start }
-.zk{ display:flex; gap:4px; align-items:center; justify-content:center } .zk svg{ width:22px; height:22px } .zk.mini svg{ width:12px; height:12px } .zk.mini{ gap:2px; padding:5px 6px; background:#fff; border:1px solid var(--line); min-width:46px }
+.zk{ display:flex; gap:4px; align-items:center; justify-content:center } .zk svg{ width:28px; height:28px } .zk.mini svg{ width:14px; height:14px } .zk.mini{ gap:2px; padding:5px 6px; background:#fff; border:1px solid var(--line); min-width:46px }
 .zgra .box{ max-width:440px; gap:10px } .zczas{ font-family:var(--display); font-weight:800; font-size:1.4rem; color:var(--sea); font-variant-numeric:tabular-nums }
 .zpasek{ height:6px; background:var(--tint) } .zpasek i{ display:block; height:100%; background:var(--amber); transition:width .2s linear }
 .zplansza{ display:grid; grid-template-columns:repeat(3,1fr); gap:8px } .zbtn{ background:#fff; border:2px solid var(--line); min-height:78px; display:flex; align-items:center; justify-content:center; cursor:pointer; padding:6px; border-radius:6px }
 .zbtn.wyb{ border-color:var(--sea); background:var(--tint); box-shadow:0 0 0 2px var(--sea) inset } .zbtn.czeka{ border-color:var(--sea) } .zbtn.dobry{ border-color:var(--ok); background:var(--ok-tint) } .zbtn.zly{ border-color:var(--bad); background:var(--bad-tint) }
 .zblok{ background:var(--bad-tint); color:var(--bad); font-weight:700; padding:8px; text-align:center } .zznal{ display:flex; flex-direction:column; gap:4px } .zprz{ display:flex; gap:6px; align-items:center }
 .zinstr{ max-height:90vh; overflow:auto } .zprzyklad{ border-left:4px solid var(--ok); padding:6px 10px; background:var(--ok-tint); display:flex; flex-direction:column; gap:6px } .zprzyklad.zle{ border-left-color:var(--bad); background:var(--bad-tint) } .zprzyklad p{ font-size:.92rem }
+.card.test{ border:2px dashed var(--sea); background:var(--tint) } .card.test .field{ margin-top:8px } .card.test select{ flex:1 }
 .banner.ok{ background:var(--ok-tint); border-color:var(--ok) } .card.zest{ border-left:5px solid var(--amber) }
 @media (prefers-reduced-motion:no-preference){ .zbtn.zly{ animation:trz .3s } @keyframes trz{ 25%{ transform:translateX(-4px) } 75%{ transform:translateX(4px) } } }
 .alert{ border-left:5px solid var(--line) } .alert.zle{ border-left-color:var(--bad); background:var(--bad-tint) } .alert.uwaga{ border-left-color:var(--amber) } .alert p{ margin-top:4px; white-space:pre-line } .btn.mini{ min-height:32px; padding:4px 12px; font-size:.85rem } .ai{ white-space:pre-wrap; margin-top:6px; line-height:1.45 }
@@ -231,6 +232,7 @@ function rysujGildie(){
   var w = S.w; if (!S.tab) S.tab = 'flota';
   powiadomZgloszenia(w);
   var h = pasek(w.nazwa, [[w.bursztyn, 'bursztyn', 'amb'], [w.porty + '/' + w.ilePortow, 'porty'], [w.rankingUkryty ? '?' : w.miejsce + '.', 'miejsce']]) + '<div class="wrap">';
+  if (w.test) h += panelTestowy(w);
   if (w.zamkniete) h += '<div class="banner bad">' + esc(w.zamkniete) + '</div>';
   else if (w.faza === 'ostatnie') h += '<div class="banner">Ostatnie 10 minut: zostaje jeden atak.</div>';
   if (w.bursztyn < 0) h += '<div class="banner bad">Skarbiec na minusie: zakupy i ataki zablokowane.</div>';
@@ -247,7 +249,13 @@ function rysujGildie(){
   for (i = 0; i < b.length; i++) b[i].onclick = function(){ var d = this.dataset; potwierdz('Sprzedać: ' + d.nazwa + '?', 'Dostaniecie <b>' + esc(d.zwrot) + '</b> bursztynów.', 'Sprzedaję', { typ:'sprzedaj', co: d.sprzedaj }); };
   b = $app.querySelectorAll('[data-atak]');
   for (i = 0; i < b.length; i++) b[i].onclick = function(){ var d = this.dataset; potwierdz('Atak: ' + d.nazwa + '?', esc(d.opis), 'Atakujemy', { typ:'atak', taktyka: d.atak }); };
-  var zg = document.getElementById('zGraj'); if (zg) zg.onclick = function(){ if (pam('bm_zest') === '1') zestawStart(); else zestawInstrukcja(); };
+  var tb = $app.querySelectorAll('[data-test]');
+  for (i = 0; i < tb.length; i++) tb[i].onclick = function(){ var d = this.dataset.test;
+    if (d === 'bursztyn') wykonaj({ typ:'test_bursztyn', ile: 200 });
+    if (d === 'port') wykonaj({ typ:'test_port', p: Number(document.getElementById('tPort').value) });
+    if (d === 'zywy') wykonaj({ typ:'test_zywy', punkt: Number(document.getElementById('tZywy').value), ile: 40 });
+    if (d === 'reset') potwierdz('Konto testowe od nowa?', 'Wszystko wróci do startu: 500 bursztynu i jedna sznika.', 'Od nowa', { typ:'test_reset' }); };
+  var zg = document.getElementById('zGraj'); if (zg) zg.onclick = function(){ if (pam('bm_zest') === '1' && !S.w.test) zestawStart(); else zestawInstrukcja(); };   // na koncie testowym objaśnienie zawsze
   var zj = document.getElementById('zJak'); if (zj) zj.onclick = zestawInstrukcja;
   var zt = document.getElementById('zTren'); if (zt) zt.onclick = zestawTrening;
   if (S.w.zestawy && S.w.zestawy.gra && !$war.innerHTML){ S.zBlok = S.w.zestawy.gra.blokadaMs ? Date.now() + S.w.zestawy.gra.blokadaMs : 0; S.zWyb = S.zWyb || []; zestawEkran(); }   // gra trwa (np. po odświeżeniu strony)
@@ -292,17 +300,25 @@ function gFlota(w){
   return h + wylogujLink();
 }
 // ---------- zestawy (na wzór gry SET) ----------
-// Karta: kolor (0 bursztyn, 1 niebieski, 2 czerwony), kształt (0 koło, 1 kwadrat, 2 trójkąt), liczba 1..3.
-var ZK = ['#d98e04', '#1f63c6', '#c62828'], ZKN = ['bursztynowy', 'niebieski', 'czerwony'], ZSN = ['koło', 'kwadrat', 'trójkąt'];
+// Karta: kolor (0 bursztynowy, 1 niebieski, 2 czerwony), rysunek (0 bursztyn, 1 beczka, 2 statek), liczba 1..3.
+var ZK = ['#d98e04', '#1f63c6', '#c62828'], ZKN = ['bursztynowy', 'niebieski', 'czerwony'], ZSN = ['bursztyn', 'beczka', 'statek'];
+// Proste, pełne sylwetki: muszą się odróżniać w ułamku sekundy, także na małym ekranie.
 function ksztalt(k, c){
-  if (k === 0) return '<circle cx="10" cy="10" r="8.5" fill="' + c + '"/>';
-  if (k === 1) return '<rect x="2" y="2" width="16" height="16" rx="1.5" fill="' + c + '"/>';
-  return '<path d="M10 1.5 L19 18.5 L1 18.5 Z" fill="' + c + '"/>';
+  if (k === 0) return '<path d="M10 1 L17.5 6 L17.5 14 L10 19 L2.5 14 L2.5 6 Z" fill="' + c + '"/><path d="M10 1 L10 19 M2.5 6 L17.5 14 M17.5 6 L2.5 14" stroke="#fff" stroke-opacity=".35" stroke-width="1"/>';   // bursztyn
+  if (k === 1) return '<rect x="3" y="1.5" width="14" height="17" rx="5.5" fill="' + c + '"/><path d="M3.6 6.5 H16.4 M3.6 13.5 H16.4" stroke="#fff" stroke-width="1.6"/>';   // beczka
+  return '<path d="M10 1.5 V12 H17 Z" fill="' + c + '"/><path d="M8.6 3.5 V12 H3.5 Z" fill="' + c + '"/><path d="M1.5 13.5 H18.5 L15.5 18.5 H4.5 Z" fill="' + c + '"/>';   // statek
 }
 function kartaZ(c, extra){
   var sv = '<svg viewBox="0 0 20 20" aria-hidden="true">' + ksztalt(c.ksztalt, ZK[c.kolor]) + '</svg>', h = '';
   for (var i = 0; i < c.liczba; i++) h += sv;
   return '<span class="zk ' + (extra || '') + '" aria-label="' + c.liczba + ' × ' + ZSN[c.ksztalt] + ', ' + ZKN[c.kolor] + '">' + h + '</span>';
+}
+function panelTestowy(w){
+  return '<div class="card test"><div class="row"><span class="name">Konto testowe</span><span class="pill">nie wpływa na grę</span></div>' +
+    '<div class="btns"><button class="btn ghost mini" data-test="bursztyn">+200 bursztynu</button><button class="btn ghost mini" data-test="reset">Od nowa</button></div>' +
+    '<div class="field"><select id="tPort" aria-label="Następny port">' + w.tabelaPortow.map(function(p, i){ return '<option value="' + i + '"' + (i === w.porty ? ' selected' : '') + '>Następny port: ' + p.nr + '. ' + esc(p.nazwa) + '</option>'; }).join('') + '<option value="' + w.ilePortow + '"' + (w.porty >= w.ilePortow ? ' selected' : '') + '>Wszystkie zdobyte</option></select><button class="btn ghost mini" data-test="port">Ustaw</button></div>' +
+    '<div class="field"><select id="tZywy" aria-label="Punkt żywy">' + (w.zywePunkty || []).map(function(n, i){ return '<option value="' + i + '">' + esc(n) + '</option>'; }).join('') + '</select><button class="btn ghost mini" data-test="zywy">Zalicz za 40</button></div>' +
+    '<p class="small">Punkty martwe sprawdzają się tu same: zgodny tekst albo samo zdjęcie zalicza.</p></div>';
 }
 function kartaZestawow(w){
   var z = w.zestawy; if (!z || !z.premia) return '';
@@ -317,10 +333,10 @@ function zestawInstrukcja(){
   var p = function(a, b, c){ return '<div class="zprz">' + kartaZ(a, 'mini') + kartaZ(b, 'mini') + kartaZ(c, 'mini') + '</div>'; };
   var K = function(k, s, l){ return { kolor: k, ksztalt: s, liczba: l }; };
   $war.innerHTML = '<div class="modal" role="dialog" aria-modal="true"><div class="box zinstr"><h2>Jak grać w zestawy</h2>' +
-    '<p>Każda karta ma <b>kolor</b>, <b>kształt</b> i <b>liczbę</b>.</p>' +
+    '<p>Każda karta ma <b>kolor</b>, <b>rysunek</b> (bursztyn, beczka albo statek) i <b>liczbę</b>.</p>' +
     '<p><b>Zestaw to 3 karty, w których każda z tych cech jest albo na wszystkich taka sama, albo na każdej inna.</b></p>' +
-    '<div class="zprzyklad ok">' + p(K(2, 0, 1), K(2, 0, 2), K(2, 0, 3)) + '<p>✓ Kolor ten sam, kształt ten sam, liczba za każdym razem inna.</p></div>' +
-    '<div class="zprzyklad ok">' + p(K(0, 0, 1), K(1, 1, 2), K(2, 2, 3)) + '<p>✓ Wszystko inne: kolory, kształty i liczby.</p></div>' +
+    '<div class="zprzyklad ok">' + p(K(2, 0, 1), K(2, 0, 2), K(2, 0, 3)) + '<p>✓ Kolor ten sam, rysunek ten sam, liczba za każdym razem inna.</p></div>' +
+    '<div class="zprzyklad ok">' + p(K(0, 0, 1), K(1, 1, 2), K(2, 2, 3)) + '<p>✓ Wszystko inne: kolory, rysunki i liczby.</p></div>' +
     '<div class="zprzyklad zle">' + p(K(1, 0, 2), K(1, 1, 2), K(0, 2, 2)) + '<p>✗ Dwa niebieskie i jeden bursztynowy. Kolor nie jest ani taki sam, ani cały inny.</p></div>' +
     '<p>Klikacie 3 karty. Na planszy jest <b>4 zestawy</b>, macie <b>' + (S.w.zestawy ? S.w.zestawy.czas : 60) + ' sekund</b>. Zła trójka: ' + (S.w.zestawy ? S.w.zestawy.kara : 3) + ' sekundy przerwy.</p>' +
     '<div class="btns"><button class="btn amber" id="zSerio">Gramy na serio</button><button class="btn ghost" id="zTr2">Trening</button><button class="btn ghost" id="zZam">Zamknij</button></div></div></div>';

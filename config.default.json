@@ -2,6 +2,7 @@
  "ustawienia": {
   "start_bursztyn": 50,
   "haslo_punktowych": "punkt-zmien-mnie",
+  "haslo_testowe": "test-zmien-mnie",
   "pilnuj_godzin": false,
   "start_gry": "08:40",
   "ostatnie_10_min": "11:10",
