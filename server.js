@@ -57,6 +57,7 @@ for (const k in DOMYSLNA.ustawienia) if (!(k in cfg.ustawienia)) cfg.ustawienia[
 // zgłoszenia znajdziek ze zdjęciem: { id, g, t, czas, tekst, zdjecie: bool, stan: 'czeka'|'ok'|'nie', powod, delta, decyzja: czas }
 let zgloszenia = wczytajJson(PLIK_ZGL, []);
 let ankiety = wczytajJson(PLIK_ANK, []);
+function planszaKonca(min) { const od = E.minuty(cfg.ustawienia.plansza_od); return od != null && min >= od ? (String(cfg.ustawienia.plansza_tekst || '').trim() || 'Koniec gry! Udajcie się do punktu startowego.') : null; }
 function ankietaOtwarta(min) { const od = E.minuty(cfg.ustawienia.ankieta_od); return od != null && min >= od; }
 function ankietaDlaTelefonu(urz, min) { return { otwarta: ankietaOtwarta(min), pytania: PYTANIA, wypelniona: !!urz && ankiety.some(a => a.urz === urz) }; }
 function zapiszAnkiete(g, test, urz, a) {
@@ -299,14 +300,14 @@ const zglDlaKadry = () => zgloszenia.slice(-300).map(z => {
 
 function widok(r, urz) {
   const t = teraz();
-  if (r.rola === 'test') { const w = testWidok(); w.ankieta = ankietaDlaTelefonu(urz, t.min); return w; }
+  if (r.rola === 'test') { const w = testWidok(); w.ankieta = ankietaDlaTelefonu(urz, t.min); w.plansza = planszaKonca(t.min); return w; }
   if (r.rola === 'gildia') {
     // gra w zestawy po czasie kończy się sama, nawet gdy telefon był zamknięty
     const z = stany[r.i].zestaw;
     if (z && Date.now() > z.start + (cfg.ustawienia.zestawy_czas_s || 60) * 1000 + 1500) wykonaj(r.i, 'gildia', { typ: 'zestaw_koniec' });
     const w = E.widokGildii(cfg, stany, r.i, t.min);
     w.dziennik = dziennikGildii(r.i, 15); w.teraz = t.czas.slice(0, 5); w.zgloszenia = zglDlaGildii(r.i);
-    w.ankieta = ankietaDlaTelefonu(urz, t.min);
+    w.ankieta = ankietaDlaTelefonu(urz, t.min); w.plansza = planszaKonca(t.min);
     w.martwe.forEach(p => { p.czeka = zgloszenia.some(z => z.g === r.i && z.rodzaj === 'martwy' && z.pkt === p.nr && z.stan === 'czeka'); });
     return w;
   }
@@ -341,6 +342,7 @@ function api(body) {
   const a = body.akcja;
   let komunikat = null;
   if (a && typeof a === 'object' && a.typ === 'ankieta' && (r.rola === 'gildia' || r.rola === 'test')) komunikat = zapiszAnkiete(r.i, r.rola === 'test', body.urz, a);
+  else if (a && typeof a === 'object' && (r.rola === 'gildia' || r.rola === 'test') && planszaKonca(teraz().min)) return { blad: 'Gra jest zakończona. Udajcie się do punktu startowego.', widok: widok(r, String(body.urz || '').slice(0, 40)) };
   else if (a && typeof a === 'object' && r.rola === 'test') { const o = testAkcja(a); if (o.blad) return o; komunikat = o; }
   else if (a && typeof a === 'object') {
     if (r.rola === 'gildia') {

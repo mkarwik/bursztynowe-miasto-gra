@@ -234,11 +234,19 @@ function kAnkieta(w){
   h += '<h3>Uwagi</h3>' + (a.uwagi.length ? a.uwagi.map(function(u){ return '<div class="card"><p class="small">' + esc(u.gildia) + ' · ' + esc(u.czas) + '</p>' + (u.najlepsze ? '<p><b>Najlepsze:</b> ' + esc(u.najlepsze) + '</p>' : '') + (u.poprawic ? '<p><b>Do poprawy:</b> ' + esc(u.poprawic) + '</p>' : '') + '</div>'; }).join('') : '<p class="sub">Na razie brak.</p>');
   return h;
 }
+// Po końcu gry: tylko plansza (i ankieta, gdy już otwarta).
+function rysujPlansze(w){
+  if ($war.querySelector('.zgra')) zamknij();
+  var ank = w.ankieta && w.ankieta.otwarta && !w.ankieta.wypelniona;
+  $app.innerHTML = '<div class="login"><div class="box" style="text-align:center"><p class="eyebrow">Bursztynowe Miasto</p><h1>' + esc(w.plansza) + '</h1>' +
+    (ank ? '<p class="sub">Jak wam się grało? Wypełnijcie krótką ankietę.</p><div class="btns" style="justify-content:center"><button class="btn amber" id="ankBtn">Ankieta</button></div>' : (w.ankieta && w.ankieta.wypelniona ? '<p class="sub">Dziękujemy za ankietę!</p>' : '')) + '</div></div>';
+}
 function wyloguj(komunikat){ S.haslo = ''; S.w = null; S.tab = ''; pam('bm_haslo', null); rysuj(); if (komunikat) toast(komunikat, true); }
 
 // ---------- rysowanie ----------
 function rysuj(){
   if (!S.w) return rysujLogowanie();
+  if (S.w.rola === 'gildia' && S.w.plansza){ rysujPlansze(S.w); return pokazAnkiete(S.w); }
   if (S.w.rola === 'gildia'){ rysujGildie(); pokazOgloszenie(S.w); return pokazAnkiete(S.w); }
   if (S.w.rola === 'punktowy') return rysujPunktowego();
   return rysujKadre();
