@@ -704,8 +704,8 @@ function kZdjecia(w){
   return h;
 }
 function kRanking(w){
-  var h = '<h2>Ranking</h2><div class="scroll"><table><tr><th>Miejsce</th><th>Gildia</th><th class="n">Porty</th><th class="n">Zdobyty</th><th class="n">Skarbiec</th><th class="n">Siła</th><th class="n">Zasięg</th><th class="n">Zwrot.</th></tr>';
-  w.ranking.forEach(function(r){ h += '<tr><td>' + r.miejsce + '.</td><td class="nw"><b>' + esc(r.nazwa) + '</b></td><td class="n">' + r.porty + '</td><td class="n">' + r.zdobyty + '</td><td class="n">' + r.bursztyn + '</td><td class="n">' + r.sila + '</td><td class="n">' + r.zasieg + '</td><td class="n">' + r.zwrot + '</td></tr>'; });
+  var h = '<h2>Ranking</h2><div class="scroll"><table><tr><th>Miejsce</th><th>Gildia</th><th class="n">Porty</th><th class="n">Zdobyty</th><th class="n">Skarbiec</th><th class="n">Siła</th><th class="n">Zasięg</th><th class="n">Zwrot.</th><th class="n">Żywe</th><th class="n">Martwe</th><th class="n">Znajdźki</th></tr>';
+  w.ranking.forEach(function(r){ h += '<tr><td>' + r.miejsce + '.</td><td class="nw"><b>' + esc(r.nazwa) + '</b></td><td class="n">' + r.porty + '</td><td class="n">' + r.zdobyty + '</td><td class="n">' + r.bursztyn + '</td><td class="n">' + r.sila + '</td><td class="n">' + r.zasieg + '</td><td class="n">' + r.zwrot + '</td><td class="n">' + r.zywe + '</td><td class="n">' + r.martwe + '</td><td class="n">' + r.znajdzki + '</td></tr>'; });
   h += '</table></div><h2>Szczegóły gildii</h2>';
   w.ranking.forEach(function(r){
     h += '<div class="card"><div class="row"><span class="name">' + esc(r.nazwa) + '</span><span class="pill">porty: ' + r.porty + '</span></div><p class="sub">Statki: ' + esc(r.statki) + '</p><p class="sub">Budowle: ' + esc(r.budowle) + '</p>' +

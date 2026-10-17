@@ -293,7 +293,7 @@ function widok(r) {
       return { i: x.i, miejsce: x.miejsce, nazwa: x.nazwa, porty: x.porty, zdobyty: x.zdobyty, bursztyn: x.bursztyn, sila: s.sila, zasieg: s.zasieg, zwrot: s.zwrot,
         statki: cfg.statki.filter(q => st.s[q.id] > 0).map(q => st.s[q.id] + ' × ' + q.nazwa).join(', ') || 'brak',
         budowle: cfg.budowle.filter(q => st.bud[q.id]).map(q => q.nazwa).join(', ') || 'brak',
-        martwe: Object.keys(st.md).length, zywe: Object.values(st.zy).reduce((a, b) => a + b, 0), znajdzki: Object.keys(st.zn).length, nieudane: st.fail };
+        martwe: Object.keys(st.md).length, zywe: Object.values(st.zy).reduce((a, b) => a + b, 0), znajdzki: Object.keys(st.zn).length + (st.zf || 0), nieudane: st.fail };
     }),
     dziennik: dziennik.slice(-300).reverse().map(d => ({ czas: d.czas, gildia: d.g == null ? '' : (cfg.gildie[d.g] || { nazwa: '?' }).nazwa, g: d.g, kto: d.kto, opis: d.opis, wynik: d.wynik, ok: d.ok, delta: d.delta, b: d.b })),
     ileZdarzen: dziennik.length, stany, konfiguracja: cfg, hasloKadryDomyslne: HASLO_KADRY === 'kadra-zmien-mnie',
