@@ -23,6 +23,7 @@
   "ranking_dla_gildii": false,
   "ukryj_ranking_min": 30,
   "martwy_auto": false,
+    "ogloszenie": "Atakujcie porty! Każdy zdobyty port dokłada +{port_bonus} bursztynu do KAŻDEJ kolejnej nagrody: z punktów żywych, martwych i znajdziek (2 porty to +{2x}, 3 porty to +{3x}). Im wcześniej zdobędziecie port, tym więcej zarobicie do końca gry.",
   "zestawy_od_portu": 3,
   "zestawy_czas_s": 60,
   "zestawy_premia": 2,

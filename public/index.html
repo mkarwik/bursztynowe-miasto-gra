@@ -186,12 +186,19 @@ function wynikAtaku(k){
     '<div class="dice" aria-label="Wynik rzutu">' + h + '</div><p>' + esc(k.tekst) + '</p><div class="btns"><button class="btn" id="mOk">Dalej</button></div></div></div>';
   document.getElementById('mOk').onclick = zamknij; document.getElementById('mOk').focus();
 }
+// Ogłoszenie od kadry: raz na telefonie dla każdego nowego tekstu.
+function pokazOgloszenie(w){
+  var t = w.ogloszenie; if (!t || $war.innerHTML || S.oglWidziane === t || pam('bm_ogl') === t) return;
+  $war.innerHTML = '<div class="modal" role="dialog" aria-modal="true"><div class="box"><p class="eyebrow">Wiadomość od kadry</p><h2>Ważne!</h2><p>' + esc(t) + '</p><div class="btns"><button class="btn amber" id="mOgl">Rozumiemy</button></div></div></div>';
+  document.getElementById('mOgl').onclick = function(){ S.oglWidziane = t; pam('bm_ogl', t); zamknij(); };
+  document.getElementById('mOgl').focus();
+}
 function wyloguj(komunikat){ S.haslo = ''; S.w = null; S.tab = ''; pam('bm_haslo', null); rysuj(); if (komunikat) toast(komunikat, true); }
 
 // ---------- rysowanie ----------
 function rysuj(){
   if (!S.w) return rysujLogowanie();
-  if (S.w.rola === 'gildia') return rysujGildie();
+  if (S.w.rola === 'gildia'){ rysujGildie(); return pokazOgloszenie(S.w); }
   if (S.w.rola === 'punktowy') return rysujPunktowego();
   return rysujKadre();
 }

@@ -387,6 +387,8 @@ function widokGildii(cfg, stany, i, min) {
     miejsce: ukryty ? null : rank.find(x => x.i === i).miejsce, rankingUkryty: ukryty, rankingWylaczony: !u.ranking_dla_gildii, rankingDo: ukryjOd != null && !ukryty ? hhmm(ukryjOd) : null,
     sila: s.sila, zasieg: s.zasieg, zwrot: s.zwrot, naprawa: s.naprawa, ileStatkow: s.ile, limit: u.limit_statkow,
     portBonus: u.port_bonus,
+    // ogłoszenie od kadry: telefon pokazuje je raz (każdy nowy tekst od nowa)
+    ogloszenie: String(u.ogloszenie || '').trim().replace(/\{port_bonus\}/g, u.port_bonus).replace(/\{(\d+)x\}/g, (_, n) => Number(n) * u.port_bonus),
     statki: cfg.statki.map(x => {
       const cena = cenaStatku(cfg, st, x);
       const powod = zamkniete || (s.ile >= u.limit_statkow ? 'Flota jest pełna' : st.b < cena ? 'Brakuje ' + (cena - st.b) : '');
