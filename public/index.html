@@ -88,6 +88,7 @@ td.nw{ white-space:nowrap }
 .login h1{ font-size:2.3rem; color:var(--ink) } .eyebrow{ font-size:.75rem; letter-spacing:.14em; text-transform:uppercase; color:var(--amber); font-weight:700 }
 .modal{ position:fixed; inset:0; z-index:20; background:rgba(22,38,45,.55); display:flex; align-items:center; justify-content:center; padding:16px }
 .modal .box{ background:#fff; width:100%; max-width:420px; padding:18px; display:flex; flex-direction:column; gap:14px; border-top:6px solid var(--amber) }
+.ank .box{ max-height:calc(100vh - 32px); overflow-y:auto } .ankp{ border-top:1px solid var(--line); padding-top:10px } .ankp p{ font-weight:600; margin-bottom:6px } .ankoc{ display:flex; gap:6px; flex-wrap:wrap } .ankoc button{ min-width:44px; min-height:44px; border:1.5px solid var(--line); background:#fff; font-size:1rem; font-weight:700; color:var(--ink, #16262d); cursor:pointer } .ankoc button.on{ background:var(--amber); border-color:var(--amber); color:#fff } .ankoc button.nd{ min-width:auto; padding:0 10px; font-weight:500; font-size:.85rem } .ankskala{ display:flex; justify-content:space-between; font-size:.75rem; color:var(--mute); max-width:260px } .ankbar{ display:flex; gap:3px; align-items:flex-end; height:28px } .ankbar i{ display:block; width:14px; background:var(--amber) }
 .modal .box.win{ border-top-color:var(--ok) } .modal .box.lose{ border-top-color:var(--bad) }
 .dice{ display:flex; gap:10px; justify-content:center }
 .die{ width:58px; height:58px; border:2.5px solid var(--ink); border-radius:10px; display:flex; align-items:center; justify-content:center; font-family:var(--display); font-weight:800; font-size:2rem; background:#fff }
@@ -193,12 +194,52 @@ function pokazOgloszenie(w){
   document.getElementById('mOgl').onclick = function(){ S.oglWidziane = t; pam('bm_ogl', t); zamknij(); };
   document.getElementById('mOgl').focus();
 }
+// Ankieta po grze: każdy telefon wypełnia osobno.
+function pokazAnkiete(w, sila){
+  var b = document.getElementById('ankBtn'); if (b) b.onclick = function(){ pokazAnkiete(S.w, true); };
+  var a = w.ankieta; if (!a || !a.otwarta || a.wypelniona) return;
+  if (!sila && ($war.innerHTML || S.ankOdlozona)) return;
+  S.ank = S.ank || { oceny: {}, najlepsze: '', poprawic: '' };
+  var h = '<div class="modal ank" role="dialog" aria-modal="true"><div class="box"><p class="eyebrow">Ankieta</p><h2>Jak wam się grało?</h2><p class="sub">Oceny od 1 (słabo) do 5 (super). Każde pytanie można pominąć. Każdy wypełnia na swoim telefonie.</p>';
+  a.pytania.forEach(function(q){
+    var v = S.ank.oceny[q.id];
+    h += '<div class="ankp"><p>' + esc(q.tekst) + '</p><div class="ankoc">' + [1, 2, 3, 4, 5].map(function(k){ return '<button type="button" data-q="' + q.id + '" data-v="' + k + '"' + (v === k ? ' class="on"' : '') + ' aria-label="' + k + ' z 5">' + k + '</button>'; }).join('') +
+      (q.nieDotyczy ? '<button type="button" class="nd' + (v === 0 ? ' on' : '') + '" data-q="' + q.id + '" data-v="0">' + esc(q.nieDotyczy) + '</button>' : '') + '</div><div class="ankskala"><span>słabo</span><span>super</span></div></div>';
+  });
+  h += '<div class="ankp"><label for="ankNaj"><b>Co było najlepsze?</b></label><textarea id="ankNaj" rows="3" maxlength="1000">' + esc(S.ank.najlepsze) + '</textarea></div>' +
+    '<div class="ankp"><label for="ankPop"><b>Co poprawić?</b></label><textarea id="ankPop" rows="3" maxlength="1000">' + esc(S.ank.poprawic) + '</textarea></div>' +
+    '<div class="btns"><button class="btn amber" id="ankWyslij">Wyślij</button><button class="btn ghost" id="ankPozniej">Później</button></div></div></div>';
+  $war.innerHTML = h;
+  var tekst = function(){ S.ank.najlepsze = document.getElementById('ankNaj').value; S.ank.poprawic = document.getElementById('ankPop').value; };
+  var bb = $war.querySelectorAll('[data-q]');
+  for (var i = 0; i < bb.length; i++) bb[i].onclick = function(){
+    var q = this.dataset.q, v = Number(this.dataset.v);
+    S.ank.oceny[q] = S.ank.oceny[q] === v ? undefined : v;
+    var rz = $war.querySelectorAll('[data-q="' + q + '"]'); for (var j = 0; j < rz.length; j++) rz[j].classList.toggle('on', Number(rz[j].dataset.v) === S.ank.oceny[q]);
+  };
+  document.getElementById('ankPozniej').onclick = function(){ tekst(); S.ankOdlozona = true; zamknij(); };
+  document.getElementById('ankWyslij').onclick = function(){
+    tekst(); var o = {}; for (var k in S.ank.oceny) if (S.ank.oceny[k] !== undefined) o[k] = S.ank.oceny[k];
+    if (!Object.keys(o).length && !S.ank.najlepsze.trim() && !S.ank.poprawic.trim()) return toast('Zaznaczcie choć jedną ocenę albo napiszcie uwagę.', true);
+    wykonaj({ typ:'ankieta', oceny: o, najlepsze: S.ank.najlepsze, poprawic: S.ank.poprawic });
+  };
+}
+function kAnkieta(w){
+  var a = w.ankieta; if (!a) return '';
+  var h = '<h2>Ankieta</h2><p class="sub">Pokazuje się gildiom od ' + esc(a.od || '—') + ' (ustawienie ankieta_od). Odpowiedzi: <b>' + a.n + '</b>' + (a.nTest ? ' (plus ' + a.nTest + ' z konta testowego, niewliczone)' : '') + '.</p>';
+  h += '<div class="scroll"><table><tr><th>Pytanie</th><th class="n">Średnia</th><th class="n">Ile</th><th>1–5</th></tr>' + a.pytania.map(function(q){
+    var mx = Math.max.apply(null, q.rozklad.concat([1]));
+    return '<tr><td>' + esc(q.tekst) + (q.nieDotyczy ? '<br><span class="small">nie grali: ' + q.nieDotyczy + '</span>' : '') + '</td><td class="n"><b>' + (q.srednia == null ? '—' : String(q.srednia).replace('.', ',')) + '</b></td><td class="n">' + q.n + '</td><td><div class="ankbar" title="' + q.rozklad.join(' / ') + '">' + q.rozklad.map(function(x){ return '<i style="height:' + Math.max(2, Math.round(28 * x / mx)) + 'px"></i>'; }).join('') + '</div></td></tr>';
+  }).join('') + '</table></div>';
+  h += '<h3>Uwagi</h3>' + (a.uwagi.length ? a.uwagi.map(function(u){ return '<div class="card"><p class="small">' + esc(u.gildia) + ' · ' + esc(u.czas) + '</p>' + (u.najlepsze ? '<p><b>Najlepsze:</b> ' + esc(u.najlepsze) + '</p>' : '') + (u.poprawic ? '<p><b>Do poprawy:</b> ' + esc(u.poprawic) + '</p>' : '') + '</div>'; }).join('') : '<p class="sub">Na razie brak.</p>');
+  return h;
+}
 function wyloguj(komunikat){ S.haslo = ''; S.w = null; S.tab = ''; pam('bm_haslo', null); rysuj(); if (komunikat) toast(komunikat, true); }
 
 // ---------- rysowanie ----------
 function rysuj(){
   if (!S.w) return rysujLogowanie();
-  if (S.w.rola === 'gildia'){ rysujGildie(); return pokazOgloszenie(S.w); }
+  if (S.w.rola === 'gildia'){ rysujGildie(); pokazOgloszenie(S.w); return pokazAnkiete(S.w); }
   if (S.w.rola === 'punktowy') return rysujPunktowego();
   return rysujKadre();
 }
@@ -247,6 +288,7 @@ function rysujGildie(){
   if (w.test) h += panelTestowy(w);
   if (w.zamkniete) h += '<div class="banner bad">' + esc(w.zamkniete) + '</div>';
   else if (w.faza === 'ostatnie') h += '<div class="banner">Ostatnie 10 minut: zostaje jeden atak.</div>';
+  if (w.ankieta && w.ankieta.otwarta && !w.ankieta.wypelniona) h += '<div class="banner">Jak wam się grało? Wypełnijcie krótką ankietę, każdy na swoim telefonie. <button class="btn amber mini" id="ankBtn">Ankieta</button></div>';
   if (w.bursztyn < 0) h += '<div class="banner bad">Skarbiec na minusie: zakupy i ataki zablokowane.</div>';
   if (S.tab === 'flota') h += gFlota(w);
   if (S.tab === 'atak') h += gAtak(w);
@@ -608,8 +650,9 @@ function rysujKadre(){
   if (S.tab === 'dziennik') h += kDziennik(w);
   if (S.tab === 'korekta') h += kKorekta(w);
   if (S.tab === 'cennik') h += kCennik(w);
+  if (S.tab === 'ankieta') h += kAnkieta(w);
   if (S.tab === 'gra') h += kGra(w);
-  h += '</div>' + zakladki([['nadzor', 'Nadzór' + (wazne ? ' (' + wazne + ')' : '')], ['zdjecia', 'Zgłoszenia' + (czekaZdj ? ' (' + czekaZdj + ')' : '')]].concat([['ranking', 'Ranking'], ['dziennik', 'Dziennik'], ['korekta', 'Poprawki'], ['cennik', 'Cennik'], ['gra', 'Gra']]));
+  h += '</div>' + zakladki([['nadzor', 'Nadzór' + (wazne ? ' (' + wazne + ')' : '')], ['zdjecia', 'Zgłoszenia' + (czekaZdj ? ' (' + czekaZdj + ')' : '')]].concat([['ranking', 'Ranking'], ['dziennik', 'Dziennik'], ['korekta', 'Poprawki'], ['cennik', 'Cennik'], ['gra', 'Gra'], ['ankieta', 'Ankieta' + (w.ankieta && w.ankieta.n ? ' (' + w.ankieta.n + ')' : '')]]));
   $app.innerHTML = h; podepnijZakladki(); podepnijWyloguj(); zaladujZdjecia();
   var zd = $app.querySelectorAll('[data-zalicz]');
   for (var y = 0; y < zd.length; y++) zd[y].onclick = function(){ wykonaj({ typ:'zgloszenie', id: this.dataset.zalicz, decyzja:'ok' }); };

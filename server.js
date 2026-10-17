@@ -24,6 +24,18 @@ const PLIK_DZIENNIK = path.join(DATA_DIR, 'dziennik.jsonl');
 const PLIK_ZGL = path.join(DATA_DIR, 'zgloszenia.json');
 const KAT_ZDJ = path.join(DATA_DIR, 'zdjecia');
 const PLIK_TEST = path.join(DATA_DIR, 'test.json');
+const PLIK_ANK = path.join(DATA_DIR, 'ankieta.json');
+// Ankieta po grze: każdy telefon osobno, oceny 1–5 (0 = nie dotyczy), dwa pola tekstowe.
+const PYTANIA = [
+  { id: 'ogolnie', tekst: 'Jak ogólnie podobała ci się gra?' },
+  { id: 'kupowanie', tekst: 'Kupowanie statków i budowli: czy wybór był ciekawy?' },
+  { id: 'ataki', tekst: 'Ataki na porty: dobór taktyki i floty' },
+  { id: 'set', tekst: 'Set przed atakiem: czy dobrze się w niego grało?', nieDotyczy: 'Nie graliśmy' },
+  { id: 'zywe', tekst: 'Punkty żywe: zadania z kadrą' },
+  { id: 'martwe', tekst: 'Punkty martwe i znajdźki' },
+  { id: 'zasady', tekst: 'Jasność zasad: czy wiedzieliście, co robić?' },
+  { id: 'aplikacja', tekst: 'Aplikacja na telefonie: czy była wygodna?' }
+];
 const DOMYSLNA = JSON.parse(fs.readFileSync(path.join(__dirname, 'config.default.json'), 'utf8'));
 const STRONA = fs.readFileSync(path.join(__dirname, 'public', 'index.html'));
 
@@ -44,6 +56,27 @@ let cfg = wczytajJson(PLIK_KONFIG, null) || JSON.parse(JSON.stringify(DOMYSLNA))
 for (const k in DOMYSLNA.ustawienia) if (!(k in cfg.ustawienia)) cfg.ustawienia[k] = DOMYSLNA.ustawienia[k];
 // zgłoszenia znajdziek ze zdjęciem: { id, g, t, czas, tekst, zdjecie: bool, stan: 'czeka'|'ok'|'nie', powod, delta, decyzja: czas }
 let zgloszenia = wczytajJson(PLIK_ZGL, []);
+let ankiety = wczytajJson(PLIK_ANK, []);
+function ankietaOtwarta(min) { const od = E.minuty(cfg.ustawienia.ankieta_od); return od != null && min >= od; }
+function ankietaDlaTelefonu(urz, min) { return { otwarta: ankietaOtwarta(min), pytania: PYTANIA, wypelniona: !!urz && ankiety.some(a => a.urz === urz) }; }
+function zapiszAnkiete(g, test, urz, a) {
+  const oceny = {};
+  for (const q of PYTANIA) { const v = Math.trunc(Number((a.oceny || {})[q.id])); if (v >= 0 && v <= 5 && (v > 0 || q.nieDotyczy)) oceny[q.id] = v; }
+  const najlepsze = String(a.najlepsze || '').trim().slice(0, 1000), poprawic = String(a.poprawic || '').trim().slice(0, 1000);
+  if (!Object.keys(oceny).length && !najlepsze && !poprawic) return { ok: false, tekst: 'Zaznaczcie choć jedną ocenę albo napiszcie uwagę.' };
+  const wpisA = { urz: String(urz || '').slice(0, 40) || 'brak-' + Date.now(), g, gildia: test ? 'Konto testowe' : (cfg.gildie[g] || { nazwa: '?' }).nazwa, test: !!test, czas: teraz().czas.slice(0, 5), oceny, najlepsze, poprawic };
+  ankiety = ankiety.filter(x => x.urz !== wpisA.urz); ankiety.push(wpisA);
+  zapiszAtomowo(PLIK_ANK, JSON.stringify(ankiety));
+  return { ok: true, tekst: 'Dziękujemy za ankietę!' };
+}
+function ankietaDlaKadry() {
+  const prawdziwe = ankiety.filter(a => !a.test);
+  return { od: cfg.ustawienia.ankieta_od, n: prawdziwe.length, nTest: ankiety.length - prawdziwe.length,
+    pytania: PYTANIA.map(q => { const v = prawdziwe.map(a => a.oceny[q.id]).filter(x => x > 0); const nd = prawdziwe.filter(a => a.oceny[q.id] === 0).length;
+      const rozklad = [1, 2, 3, 4, 5].map(k => v.filter(x => x === k).length);
+      return { tekst: q.tekst, n: v.length, srednia: v.length ? Math.round(10 * v.reduce((s, x) => s + x, 0) / v.length) / 10 : null, rozklad, nieDotyczy: nd }; }),
+    uwagi: prawdziwe.filter(a => a.najlepsze || a.poprawic).map(a => ({ gildia: a.gildia, czas: a.czas, najlepsze: a.najlepsze, poprawic: a.poprawic })).reverse() };
+}
 function zapiszZgl() { zapiszAtomowo(PLIK_ZGL, JSON.stringify(zgloszenia)); }
 let stany = (wczytajJson(PLIK_STAN, null) || {}).stany || [];
 let dziennik = [];
@@ -264,15 +297,16 @@ const zglDlaKadry = () => zgloszenia.slice(-300).map(z => {
   return o;
 });
 
-function widok(r) {
+function widok(r, urz) {
   const t = teraz();
-  if (r.rola === 'test') return testWidok();
+  if (r.rola === 'test') { const w = testWidok(); w.ankieta = ankietaDlaTelefonu(urz, t.min); return w; }
   if (r.rola === 'gildia') {
     // gra w zestawy po czasie kończy się sama, nawet gdy telefon był zamknięty
     const z = stany[r.i].zestaw;
     if (z && Date.now() > z.start + (cfg.ustawienia.zestawy_czas_s || 60) * 1000 + 1500) wykonaj(r.i, 'gildia', { typ: 'zestaw_koniec' });
     const w = E.widokGildii(cfg, stany, r.i, t.min);
     w.dziennik = dziennikGildii(r.i, 15); w.teraz = t.czas.slice(0, 5); w.zgloszenia = zglDlaGildii(r.i);
+    w.ankieta = ankietaDlaTelefonu(urz, t.min);
     w.martwe.forEach(p => { p.czeka = zgloszenia.some(z => z.g === r.i && z.rodzaj === 'martwy' && z.pkt === p.nr && z.stan === 'czeka'); });
     return w;
   }
@@ -297,7 +331,7 @@ function widok(r) {
     }),
     dziennik: dziennik.slice(-300).reverse().map(d => ({ czas: d.czas, gildia: d.g == null ? '' : (cfg.gildie[d.g] || { nazwa: '?' }).nazwa, g: d.g, kto: d.kto, opis: d.opis, wynik: d.wynik, ok: d.ok, delta: d.delta, b: d.b })),
     ileZdarzen: dziennik.length, stany, konfiguracja: cfg, hasloKadryDomyslne: HASLO_KADRY === 'kadra-zmien-mnie',
-    zgloszenia: zglDlaKadry(), nadzor: nadzor(), ai: { jest: !!AI_KLUCZ, dostawca: AI_DOSTAWCA, model: AI_KLUCZ ? AI_MODEL : '', tekst: ai.tekst, czas: ai.czas, blad: ai.blad, trwa: ai.trwa, co: AI_CO_MIN } };
+    zgloszenia: zglDlaKadry(), ankieta: ankietaDlaKadry(), nadzor: nadzor(), ai: { jest: !!AI_KLUCZ, dostawca: AI_DOSTAWCA, model: AI_KLUCZ ? AI_MODEL : '', tekst: ai.tekst, czas: ai.czas, blad: ai.blad, trwa: ai.trwa, co: AI_CO_MIN } };
 }
 
 function api(body) {
@@ -306,7 +340,8 @@ function api(body) {
   if (r.rola !== 'test') obecnosc(r, body);
   const a = body.akcja;
   let komunikat = null;
-  if (a && typeof a === 'object' && r.rola === 'test') { const o = testAkcja(a); if (o.blad) return o; komunikat = o; }
+  if (a && typeof a === 'object' && a.typ === 'ankieta' && (r.rola === 'gildia' || r.rola === 'test')) komunikat = zapiszAnkiete(r.i, r.rola === 'test', body.urz, a);
+  else if (a && typeof a === 'object' && r.rola === 'test') { const o = testAkcja(a); if (o.blad) return o; komunikat = o; }
   else if (a && typeof a === 'object') {
     if (r.rola === 'gildia') {
       if (a.typ === 'zdjecie') komunikat = noweZgloszenie(r.i, a);
@@ -375,7 +410,7 @@ function api(body) {
       } else return { blad: 'Nieznane polecenie kadry.' };
     }
   }
-  return { widok: widok(r), komunikat };
+  return { widok: widok(r, String(body.urz || '').slice(0, 40)), komunikat };
 }
 
 // ---------- analiza AI (opcjonalna, gdy jest klucz OpenAI albo Anthropic) ----------
