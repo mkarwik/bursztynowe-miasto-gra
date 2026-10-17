@@ -380,11 +380,12 @@ function widokGildii(cfg, stany, i, min) {
   const koniec = minuty(u.koniec_gry);
   const ukryjOd = u.pilnuj_godzin && u.ukryj_ranking_min > 0 && koniec != null ? koniec - u.ukryj_ranking_min : null;
   // ranking widzi tylko kadra, chyba że w ustawieniach włączono ranking_dla_gildii
-  const ukryty = !u.ranking_dla_gildii || (ukryjOd != null && min >= ukryjOd);
+  const podglad = !!u.podglad_po_grze;   // po grze: gildie tylko oglądają, ranking dla wszystkich
+  const ukryty = !podglad && (!u.ranking_dla_gildii || (ukryjOd != null && min >= ukryjOd));
   return {
     rola: 'gildia', nazwa: cfg.gildie[i].nazwa, faza: f, zamkniete,
     bursztyn: st.b, zdobyty: st.z, porty: st.p, ilePortow: cfg.porty.length,
-    miejsce: ukryty ? null : rank.find(x => x.i === i).miejsce, rankingUkryty: ukryty, rankingWylaczony: !u.ranking_dla_gildii, rankingDo: ukryjOd != null && !ukryty ? hhmm(ukryjOd) : null,
+    miejsce: ukryty ? null : rank.find(x => x.i === i).miejsce, rankingUkryty: ukryty, rankingWylaczony: !u.ranking_dla_gildii && !podglad, podglad, rankingDo: !podglad && ukryjOd != null && ukryjOd >= 0 && !ukryty ? hhmm(ukryjOd) : null,
     sila: s.sila, zasieg: s.zasieg, zwrot: s.zwrot, naprawa: s.naprawa, ileStatkow: s.ile, limit: u.limit_statkow,
     portBonus: u.port_bonus,
     // ogłoszenie od kadry: telefon pokazuje je raz (każdy nowy tekst od nowa)
@@ -424,7 +425,7 @@ function widokGildii(cfg, stany, i, min) {
       }
       return o;
     })(),
-    ranking: ukryty ? [] : rank.map(x => ({ miejsce: x.miejsce, nazwa: x.nazwa, porty: x.porty, ja: x.i === i })),
+    ranking: ukryty ? [] : rank.map(x => ({ miejsce: x.miejsce, nazwa: x.nazwa, porty: x.porty, zdobyty: podglad ? x.zdobyty : undefined, ja: x.i === i })),
     godziny: u.pilnuj_godzin ? { ostatnie: u.ostatnie_10_min, koniec: u.koniec_gry } : null,
   };
 }

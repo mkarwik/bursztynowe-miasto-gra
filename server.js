@@ -57,7 +57,11 @@ for (const k in DOMYSLNA.ustawienia) if (!(k in cfg.ustawienia)) cfg.ustawienia[
 // zgłoszenia znajdziek ze zdjęciem: { id, g, t, czas, tekst, zdjecie: bool, stan: 'czeka'|'ok'|'nie', powod, delta, decyzja: czas }
 let zgloszenia = wczytajJson(PLIK_ZGL, []);
 let ankiety = wczytajJson(PLIK_ANK, []);
-function planszaKonca(min) { const od = E.minuty(cfg.ustawienia.plansza_od); return od != null && min >= od ? (String(cfg.ustawienia.plansza_tekst || '').trim() || 'Koniec gry! Udajcie się do punktu startowego.') : null; }
+function podglad() { return !!cfg.ustawienia.podglad_po_grze; }
+function planszaKonca(min) { if (podglad()) return null;
+  return planszaOd(min); }
+function planszaOd(min) { if (!cfg.ustawienia.pilnuj_godzin) return null;   // jak inne godziny: działa tylko przy pilnuj_godzin
+  const od = E.minuty(cfg.ustawienia.plansza_od); return od != null && min >= od ? (String(cfg.ustawienia.plansza_tekst || '').trim() || 'Koniec gry! Udajcie się do punktu startowego.') : null; }
 function ankietaOtwarta(min) { const od = E.minuty(cfg.ustawienia.ankieta_od); return od != null && min >= od; }
 function ankietaDlaTelefonu(urz, min) { return { otwarta: ankietaOtwarta(min), pytania: PYTANIA, wypelniona: !!urz && ankiety.some(a => a.urz === urz) }; }
 function zapiszAnkiete(g, test, urz, a) {
@@ -300,7 +304,7 @@ const zglDlaKadry = () => zgloszenia.slice(-300).map(z => {
 
 function widok(r, urz) {
   const t = teraz();
-  if (r.rola === 'test') { const w = testWidok(); w.ankieta = ankietaDlaTelefonu(urz, t.min); w.plansza = planszaKonca(t.min); return w; }
+  if (r.rola === 'test') { const w = testWidok(); w.ankieta = ankietaDlaTelefonu(urz, t.min); w.plansza = null; w.podglad = false; return w; }   // konto testowe działa zawsze
   if (r.rola === 'gildia') {
     // gra w zestawy po czasie kończy się sama, nawet gdy telefon był zamknięty
     const z = stany[r.i].zestaw;
@@ -342,7 +346,7 @@ function api(body) {
   const a = body.akcja;
   let komunikat = null;
   if (a && typeof a === 'object' && a.typ === 'ankieta' && (r.rola === 'gildia' || r.rola === 'test')) komunikat = zapiszAnkiete(r.i, r.rola === 'test', body.urz, a);
-  else if (a && typeof a === 'object' && (r.rola === 'gildia' || r.rola === 'test') && planszaKonca(teraz().min)) return { blad: 'Gra jest zakończona. Udajcie się do punktu startowego.', widok: widok(r, String(body.urz || '').slice(0, 40)) };
+  else if (a && typeof a === 'object' && r.rola === 'gildia' && (podglad() || planszaKonca(teraz().min))) return { blad: podglad() ? 'Gra jest zakończona, teraz tylko podgląd.' : 'Gra jest zakończona. Udajcie się do punktu startowego.', widok: widok(r, String(body.urz || '').slice(0, 40)) };
   else if (a && typeof a === 'object' && r.rola === 'test') { const o = testAkcja(a); if (o.blad) return o; komunikat = o; }
   else if (a && typeof a === 'object') {
     if (r.rola === 'gildia') {
@@ -499,7 +503,7 @@ const serwer = http.createServer((req, res) => {
   const url = new URL(req.url, 'http://x');
   const ip = String(req.headers['x-forwarded-for'] || req.socket.remoteAddress || '').split(',')[0].trim();
   const json = (kod, o) => { res.writeHead(kod, { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' }); res.end(JSON.stringify(o)); };
-  if (req.method === 'GET' && (url.pathname === '/' || url.pathname === '/index.html')) {
+  if (req.method === 'GET' && (url.pathname === '/' || url.pathname === '/index.html' || url.pathname === '/set' || url.pathname === '/set/')) {
     res.writeHead(200, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-cache' }); return res.end(STRONA);
   }
   if (req.method === 'GET' && url.pathname === '/zdrowie') return json(200, { ok: true, zdarzen: dziennik.length });

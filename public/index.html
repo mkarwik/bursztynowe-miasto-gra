@@ -241,13 +241,28 @@ function rysujPlansze(w){
   $app.innerHTML = '<div class="login"><div class="box" style="text-align:center"><p class="eyebrow">Bursztynowe Miasto</p><h1>' + esc(w.plansza) + '</h1>' +
     (ank ? '<p class="sub">Jak wam się grało? Wypełnijcie krótką ankietę.</p><div class="btns" style="justify-content:center"><button class="btn amber" id="ankBtn">Ankieta</button></div>' : (w.ankieta && w.ankieta.wypelniona ? '<p class="sub">Dziękujemy za ankietę!</p>' : '')) + '</div></div>';
 }
+function zablokujPodglad(){
+  var e = $app.querySelectorAll('.wrap button, .wrap input, .wrap select, .wrap textarea, .wrap label.btn');
+  for (var i = 0; i < e.length; i++) if (e[i].id !== 'ankBtn' && e[i].id !== 'wyloguj'){ e[i].disabled = true; e[i].style.pointerEvents = 'none'; e[i].style.opacity = '.45'; }
+}
+// Strona /set: Set do pogrania bez logowania, wynik i rekord na tym telefonie.
+function rysujSet(){
+  var rek = Number(pam('bm_set_rekord') || 0);
+  $app.innerHTML = '<div class="login"><div class="box" style="text-align:center"><p class="eyebrow">Bursztynowe Miasto</p><h1>Set</h1>' +
+    '<p class="sub">Znajdźcie jak najwięcej setów w 60 sekund.</p>' + (rek ? '<p>Rekord na tym telefonie: <b>' + rek + '</b></p>' : '') +
+    '<div class="btns" style="justify-content:center"><button class="btn amber" id="sGraj">Graj</button><button class="btn ghost" id="sJak">Jak grać?</button></div></div></div>';
+  document.getElementById('sGraj').onclick = zestawTrening;
+  document.getElementById('sJak').onclick = function(){ zestawInstrukcja(null); };
+}
 function wyloguj(komunikat){ S.haslo = ''; S.w = null; S.tab = ''; pam('bm_haslo', null); rysuj(); if (komunikat) toast(komunikat, true); }
 
 // ---------- rysowanie ----------
 function rysuj(){
   if (!S.w) return rysujLogowanie();
   if (S.w.rola === 'gildia' && S.w.plansza){ rysujPlansze(S.w); return pokazAnkiete(S.w); }
+  if (S.w.rola === 'gildia' && S.w.podglad){ rysujGildie(); zablokujPodglad(); return pokazAnkiete(S.w); }
   if (S.w.rola === 'gildia'){ rysujGildie(); pokazOgloszenie(S.w); return pokazAnkiete(S.w); }
+  if (S.w.rola === 'set') return rysujSet();
   if (S.w.rola === 'punktowy') return rysujPunktowego();
   return rysujKadre();
 }
@@ -290,11 +305,12 @@ function powiadomZgloszenia(w){
   try{ navigator.vibrate && navigator.vibrate([120, 60, 120]); }catch(e){}
 }
 function rysujGildie(){
-  var w = S.w; if (!S.tab || (w.rankingWylaczony && S.tab === 'ranking')) S.tab = 'flota';
+  var w = S.w; if (!S.tab || (w.rankingWylaczony && S.tab === 'ranking')) S.tab = w.podglad ? 'ranking' : 'flota';
   powiadomZgloszenia(w);
   var h = pasek(w.nazwa, [[w.bursztyn, 'bursztyn', 'amb'], [w.porty + '/' + w.ilePortow, 'porty']].concat(w.rankingWylaczony ? [] : [[w.rankingUkryty ? '?' : w.miejsce + '.', 'miejsce']])) + '<div class="wrap">';
   if (w.test) h += panelTestowy(w);
-  if (w.zamkniete) h += '<div class="banner bad">' + esc(w.zamkniete) + '</div>';
+  if (w.podglad) h += '<div class="banner">Gra zakończona. To tylko podgląd: możecie zobaczyć swoją flotę, dziennik i ranking.</div>';
+  else if (w.zamkniete) h += '<div class="banner bad">' + esc(w.zamkniete) + '</div>';
   else if (w.faza === 'ostatnie') h += '<div class="banner">Ostatnie 10 minut: zostaje jeden atak.</div>';
   if (w.ankieta && w.ankieta.otwarta && !w.ankieta.wypelniona) h += '<div class="banner">Jak wam się grało? Wypełnijcie krótką ankietę, każdy na swoim telefonie. <button class="btn amber mini" id="ankBtn">Ankieta</button></div>';
   if (w.bursztyn < 0) h += '<div class="banner bad">Skarbiec na minusie: zakupy i ataki zablokowane.</div>';
@@ -408,8 +424,8 @@ function zestawInstrukcja(taktyka){
     '<div class="zprzyklad ok">' + p(K(2, 0, 1), K(2, 0, 2), K(2, 0, 3)) + '<p>✓ Kolor ten sam, rysunek ten sam, liczba za każdym razem inna.</p></div>' +
     '<div class="zprzyklad ok">' + p(K(0, 0, 1), K(1, 1, 2), K(2, 2, 3)) + '<p>✓ Wszystko inne: kolory, rysunki i liczby.</p></div>' +
     '<div class="zprzyklad zle">' + p(K(1, 0, 2), K(1, 1, 2), K(0, 2, 2)) + '<p>✗ Dwa niebieskie i jeden bursztynowy. Kolor nie jest ani taki sam, ani cały inny.</p></div>' +
-    '<p>Klikacie 3 karty. <b>Znaleziony set znika, a na jego miejsce wchodzą nowe karty.</b> Na planszy zawsze jest jakiś set, zwykle dwa albo więcej. Macie <b>' + (S.w.zestawy ? S.w.zestawy.czas : 60) + ' sekund</b>, zła trójka to ' + (S.w.zestawy ? S.w.zestawy.kara : 3) + ' sekundy przerwy.</p>' +
-    '<p>Po czasie albo po „Kończymy” od razu atakujecie, z premią <b>+' + (S.w.zestawy ? S.w.zestawy.premia : 2) + ' za każdy set</b>.</p>' +
+    '<p>Klikacie 3 karty. <b>Znaleziony set znika, a na jego miejsce wchodzą nowe karty.</b> Na planszy zawsze jest jakiś set, zwykle dwa albo więcej. Macie <b>' + ((S.w.zestawy && S.w.zestawy.czas) || 60) + ' sekund</b>, zła trójka to ' + (S.w.zestawy ? S.w.zestawy.kara : 3) + ' sekundy przerwy.</p>' +
+    (S.w.rola === 'set' ? '' : '<p>Po czasie albo po „Kończymy” od razu atakujecie, z premią <b>+' + (S.w.zestawy ? S.w.zestawy.premia : 2) + ' za każdy set</b>.</p>') +
     '<div class="btns">' + (taktyka ? '<button class="btn amber" id="zSerio">Gramy na serio</button>' : '') + '<button class="btn ghost" id="zTr2">Trening</button><button class="btn ghost" id="zZam">Zamknij</button></div></div></div>';
   pam('bm_zest', '1');
   var zs = document.getElementById('zSerio'); if (zs) zs.onclick = function(){ zestawStart(taktyka); };
@@ -517,6 +533,10 @@ function zZegar(){
 }
 function zKoniec(){
   clearInterval(S.zTimer);
+  if (S.zTren && S.w.rola === 'set'){ var ns = S.zTren.znal.length, rek = Number(pam('bm_set_rekord') || 0); S.zTren = null; S.zBlok = 0; if (ns > rek) pam('bm_set_rekord', String(ns));
+    $war.innerHTML = '<div class="modal"><div class="box' + (ns > rek ? ' win' : '') + '"><h2>' + (ns > rek && rek ? 'Nowy rekord!' : 'Koniec') + '</h2><p>Znaleźliście ' + ns + (ns === 1 ? ' set' : ns > 1 && ns < 5 ? ' sety' : ' setów') + '.</p><div class="btns"><button class="btn amber" id="zJeszcze">Jeszcze raz</button><button class="btn ghost" id="zOk">Zamknij</button></div></div></div>';
+    document.getElementById('zJeszcze').onclick = function(){ zamknij(); rysuj(); zestawTrening(); };
+    document.getElementById('zOk').onclick = function(){ zamknij(); rysuj(); }; return; }
   if (S.zTren){ var n = S.zTren.znal.length; S.zTren = null; S.zBlok = 0;
     $war.innerHTML = '<div class="modal"><div class="box"><h2>Koniec treningu</h2><p>Znaleźliście ' + n + (n === 1 ? ' set' : n > 1 && n < 5 ? ' sety' : ' setów') + '. W treningu nie ma punktów.</p><div class="btns"><button class="btn" id="zOk">OK</button></div></div></div>';
     document.getElementById('zOk').onclick = function(){ zamknij(); rysuj(); }; return; }
@@ -603,8 +623,9 @@ function gDziennik(w){
 }
 function gRanking(w){
   if (w.rankingUkryty) return '<h2>Ranking</h2><div class="banner">Ukryty do końca gry.</div>';
-  return '<h2>Ranking</h2>' + (w.rankingDo ? '<p class="sub">Widoczny do ' + esc(w.rankingDo) + '.</p>' : '') + '<table><tr><th>Miejsce</th><th>Gildia</th><th class="n">Porty</th></tr>' +
-    w.ranking.map(function(r){ return '<tr class="' + (r.ja ? 'me' : '') + '"><td>' + r.miejsce + '.</td><td>' + esc(r.nazwa) + '</td><td class="n">' + r.porty + '</td></tr>'; }).join('') + '</table>';
+  return '<h2>Ranking</h2>' + (w.rankingDo ? '<p class="sub">Widoczny do ' + esc(w.rankingDo) + '.</p>' : '') + '<table><tr><th>Miejsce</th><th>Gildia</th><th class="n">Porty</th>' + (w.podglad ? '<th class="n">Bursztyn</th>' : '') + '</tr>' +
+    w.ranking.map(function(r){ return '<tr class="' + (r.ja ? 'me' : '') + '"><td>' + r.miejsce + '.</td><td>' + esc(r.nazwa) + '</td><td class="n">' + r.porty + '</td>' + (w.podglad ? '<td class="n">' + r.zdobyty + '</td>' : '') + '</tr>'; }).join('') + '</table>' +
+    (w.podglad ? '<p class="small">Przy tej samej liczbie portów decyduje bursztyn zdobyty w całej grze.</p>' : '');
 }
 
 function rysujPunktowego(){
@@ -866,7 +887,8 @@ function kGra(w){
 
 // ---------- start ----------
 var zap = pam('bm_haslo');
-if (zap){ S.haslo = zap; api(null).then(function(o){ if (o.blad){ S.haslo = ''; pam('bm_haslo', null); } else S.w = o.widok; rysuj(); }).catch(function(){ S.haslo = ''; rysuj(); toast('Brak połączenia z serwerem.', true); }); }
+if (/^\/set\/?$/.test(location.pathname)){ S.w = { rola: 'set', zestawy: { czas: 60, kara: 3 } }; document.title = 'Set · Bursztynowe Miasto'; rysuj(); }
+else if (zap){ S.haslo = zap; api(null).then(function(o){ if (o.blad){ S.haslo = ''; pam('bm_haslo', null); } else S.w = o.widok; rysuj(); }).catch(function(){ S.haslo = ''; rysuj(); toast('Brak połączenia z serwerem.', true); }); }
 else rysuj();
 setInterval(function(){ if (S.haslo && S.w && !document.hidden && !$war.querySelector('.zgra')) odswiez(true); }, 8000);
 document.addEventListener('visibilitychange', function(){ if (!document.hidden && S.haslo && S.w) odswiez(true); });
