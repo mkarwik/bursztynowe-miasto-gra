@@ -47,6 +47,45 @@ function zapiszAtomowo(plik, tekst) {
   fs.writeFileSync(tmp, tekst);
   fs.renameSync(tmp, plik);
 }
+// ZIP bez kompresji (zdjęcia i tak są skompresowane), bez zależności.
+const CRC = (() => { const t = new Int32Array(256); for (let n = 0; n < 256; n++) { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1; t[n] = c; } return t; })();
+function crc32(b) { let c = -1; for (let i = 0; i < b.length; i++) c = CRC[(c ^ b[i]) & 255] ^ (c >>> 8); return (c ^ -1) >>> 0; }
+function zrobZip(pliki) {
+  const czesci = [], centralny = []; let off = 0;
+  for (const p of pliki) {
+    const nazwa = Buffer.from(p.nazwa, 'utf8'), crc = crc32(p.dane), n = p.dane.length;
+    const h = Buffer.alloc(30); h.writeUInt32LE(0x04034b50, 0); h.writeUInt16LE(20, 4); h.writeUInt16LE(0x0800, 6); h.writeUInt16LE(0, 8);
+    h.writeUInt32LE(0, 10); h.writeUInt32LE(crc, 14); h.writeUInt32LE(n, 18); h.writeUInt32LE(n, 22); h.writeUInt16LE(nazwa.length, 26); h.writeUInt16LE(0, 28);
+    czesci.push(h, nazwa, p.dane);
+    const c = Buffer.alloc(46); c.writeUInt32LE(0x02014b50, 0); c.writeUInt16LE(20, 4); c.writeUInt16LE(20, 6); c.writeUInt16LE(0x0800, 8); c.writeUInt16LE(0, 10);
+    c.writeUInt32LE(0, 12); c.writeUInt32LE(crc, 16); c.writeUInt32LE(n, 20); c.writeUInt32LE(n, 24); c.writeUInt16LE(nazwa.length, 28); c.writeUInt32LE(off, 42);
+    centralny.push(c, nazwa); off += 30 + nazwa.length + n;
+  }
+  const cd = Buffer.concat(centralny), e = Buffer.alloc(22);
+  e.writeUInt32LE(0x06054b50, 0); e.writeUInt16LE(pliki.length, 8); e.writeUInt16LE(pliki.length, 10); e.writeUInt32LE(cd.length, 12); e.writeUInt32LE(off, 16);
+  return Buffer.concat(czesci.concat([cd, e]));
+}
+function zipZdjec() {
+  const czysc = s => String(s || '').replace(/[\\/:*?"<>|\n\r]+/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 60) || 'bez-nazwy';
+  const pliki = [], wiersze = [['plik', 'gildia', 'rodzaj', 'punkt', 'czas', 'tekst', 'decyzja', 'powod']], uzyte = {};
+  for (const z of zgloszenia) {
+    const gildia = (cfg.gildie[z.g] || { nazwa: '?' }).nazwa, punkt = z.rodzaj === 'martwy' ? (cfg.punkty_martwe[z.pkt] || {}).nazwa : 'Znajdźka';
+    const decyzja = z.stan === 'ok' ? 'zaliczone' : z.stan === 'nie' ? 'odrzucone' : z.stan === 'czeka' ? 'czeka' : String(z.stan || '');
+    let plik = '';
+    if (z.zdjecie) {
+      const roz = z.zdjecie === 'jpeg' || z.zdjecie === true ? 'jpg' : String(z.zdjecie), sciezka = path.join(KAT_ZDJ, z.id + '.' + roz);   // jak przy /zdjecie
+      if (fs.existsSync(sciezka)) {
+        let baza = czysc(gildia) + '/' + czysc(punkt) + ' ' + String(z.czas || '').slice(0, 5).replace(':', '-') + ' ' + decyzja;
+        let n = 1, nazwa = baza + '.' + roz; while (uzyte[nazwa]) nazwa = baza + ' (' + (++n) + ').' + roz; uzyte[nazwa] = 1;
+        pliki.push({ nazwa, dane: fs.readFileSync(sciezka) }); plik = nazwa;
+      }
+    }
+    wiersze.push([plik, gildia, z.rodzaj || 'znajdzka', punkt, z.czas, z.tekst || '', decyzja, z.powod || '']);
+  }
+  pliki.push({ nazwa: 'zgloszenia.csv', dane: Buffer.from('\ufeff' + wiersze.map(w => w.map(csv).join(';')).join('\n'), 'utf8') });
+  return zrobZip(pliki);
+}
+
 function wczytajJson(plik, zapas) {
   try { return JSON.parse(fs.readFileSync(plik, 'utf8')); } catch (e) { return zapas; }
 }
@@ -519,6 +558,13 @@ const serwer = http.createServer((req, res) => {
       dziennik.map(d => [d.czas, d.g == null ? '' : (cfg.gildie[d.g] || { nazwa: '?' }).nazwa, d.kto, d.opis, d.wynik, d.ok ? 'tak' : 'nie', d.delta, d.b]));
     res.writeHead(200, { 'content-type': 'text/csv; charset=utf-8', 'content-disposition': 'attachment; filename="bursztynowe-miasto-dziennik.csv"' });
     return res.end('﻿' + wiersze.map(w => w.map(csv).join(';')).join('\n'));
+  }
+  if (req.method === 'GET' && url.pathname === '/zdjecia.zip') {
+    const r = rola(url.searchParams.get('haslo'));
+    if (!r || r.rola !== 'kadra') { zlaProba(ip); return json(403, { blad: 'Tylko dla kadry.' }); }
+    const zip = zipZdjec();
+    res.writeHead(200, { 'content-type': 'application/zip', 'content-disposition': 'attachment; filename="bursztynowe-miasto-zdjecia.zip"', 'content-length': zip.length });
+    return res.end(zip);
   }
   if (req.method === 'POST' && url.pathname === '/zdjecie') {
     if (zablokowany(ip)) return json(429, { blad: 'Za dużo złych haseł.' });

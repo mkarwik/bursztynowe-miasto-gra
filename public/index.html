@@ -754,7 +754,7 @@ function kZdjecia(w){
   var u = w.konfiguracja.ustawienia, z = w.zgloszenia || [], teraz = Date.now();
   var czeka = z.filter(function(x){ return x.stan === 'czeka'; }).sort(function(a, b){ return a.t - b.t; });
   var po = z.filter(function(x){ return x.stan !== 'czeka'; }).sort(function(a, b){ return b.t - a.t; }).slice(0, 30);
-  var h = '<h2>Do sprawdzenia</h2>';
+  var h = (z.some(function(x){ return x.zdjecie; }) ? '<div class="btns" style="margin-bottom:8px"><a class="btn ghost mini" style="text-decoration:none;display:inline-flex;align-items:center" href="/zdjecia.zip?haslo=' + encodeURIComponent(S.haslo) + '">Pobierz wszystkie zdjęcia (ZIP)</a></div>' : '') + '<h2>Do sprawdzenia</h2>';
   if (!czeka.length) h += '<div class="card"><p><b>Nic nie czeka.</b></p></div>';
   czeka.forEach(function(x){
     var st = w.stany[x.g] || {}, bud = st.bud || {}, min = Math.round((teraz - x.t) / 60000), martwy = x.rodzaj === 'martwy', nagroda;
@@ -880,7 +880,7 @@ function zmienWiersze(sekcja, dodaj){
 function kGra(w){
   var q = encodeURIComponent(S.haslo), u = w.konfiguracja.ustawienia;
   return '<h2>Gra</h2><div class="card"><p>Godzina na serwerze: <b>' + esc(w.teraz) + '</b>.</p><p>Pilnowanie godzin: <b>' + (u.pilnuj_godzin ? 'włączone' : 'wyłączone (tryb próbny)') + '</b>. Start ' + esc(u.start_gry) + ', ostatnie 10 minut od ' + esc(u.ostatnie_10_min) + ', koniec ' + esc(u.koniec_gry) + '.</p></div>' +
-    '<h2>Eksport</h2><div class="card"><p class="sub">Kopia na wypadek awarii i do podsumowania po grze.</p><div class="btns"><a class="btn ghost" style="text-decoration:none;display:inline-flex;align-items:center" href="/eksport.csv?haslo=' + q + '">Dziennik (CSV do Excela)</a><a class="btn ghost" style="text-decoration:none;display:inline-flex;align-items:center" href="/eksport.json?haslo=' + q + '">Pełny stan (JSON)</a></div></div>' +
+    '<h2>Eksport</h2><div class="card"><p class="sub">Kopia na wypadek awarii i do podsumowania po grze.</p><div class="btns"><a class="btn ghost" style="text-decoration:none;display:inline-flex;align-items:center" href="/eksport.csv?haslo=' + q + '">Dziennik (CSV do Excela)</a><a class="btn ghost" style="text-decoration:none;display:inline-flex;align-items:center" href="/eksport.json?haslo=' + q + '">Pełny stan (JSON)</a><a class="btn ghost" style="text-decoration:none;display:inline-flex;align-items:center" href="/zdjecia.zip?haslo=' + q + '">Wszystkie zdjęcia (ZIP)</a></div></div>' +
     '<h2>Zdjęcia</h2><div class="card"><p class="sub">Zdjęcia od gildii leżą na serwerze w katalogu danych. Po grze warto je usunąć.</p><div class="btns"><button class="btn ghost" id="usunZdj">Usuń wszystkie zdjęcia</button></div></div>' +
     '<h2>Wyzerowanie gry</h2><form class="card" id="fReset"><p class="sub">Usuwa cały postęp wszystkich gildii i dziennik. Cennik i hasła zostają. Poprzedni stan zapisuje się w kopii na serwerze. Wpiszcie słowo RESET.</p><div class="field"><input id="resetTxt" type="text" aria-label="Wpisz RESET" autocomplete="off" autocapitalize="characters"><button class="btn bad">Wyzeruj grę</button></div></form>' + wylogujLink();
 }
