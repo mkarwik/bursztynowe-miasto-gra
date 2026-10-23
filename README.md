@@ -1,89 +1,54 @@
 # Bursztynowe Miasto
 
-Aplikacja do gry ekonomicznej: jedna strona dla gildii, punktowych i kadry. Każdy wchodzi pod ten sam adres i wpisuje swoje hasło.
+A city game for scouts, played on the streets of Gdańsk with a phone app as the game board. Teams ("guilds") earn amber at real-world checkpoints, spend it on ships and buildings in the app, and attack ten Hanseatic ports one by one.
 
-Bez zewnętrznych bibliotek. Wymaga tylko Node 20 lub nowszego. Dane leżą w plikach w jednym katalogu.
+Played in October 2026 by **30 players in 10 guilds**. The server logged 454 game events, and in the post-game survey players rated the game **4.5/5** and the app **5/5**.
 
-## Wdrożenie w Coolify
+<p>
+  <img src="docs/img/guild-fleet.png" width="260" alt="Guild view: fleet and buildings">
+  <img src="docs/img/guild-attack.png" width="260" alt="Guild view: attacking the next port, with odds for each tactic">
+</p>
 
-1. Wgraj ten katalog do repozytorium na GitHubie.
-2. W Coolify dodaj nową aplikację z tego repozytorium. Sposób budowania: **Dockerfile** (jest w głównym katalogu).
-3. Port aplikacji: **3000**.
-4. Dodaj zmienną środowiskową **HASLO_KADRY** z hasłem dla kadry. Bez niej działa hasło domyślne `kadra-zmien-mnie`, a aplikacja pokazuje ostrzeżenie.
-5. Dodaj trwały katalog (persistent storage, volume) zamontowany w kontenerze pod ścieżką **/data**. Bez tego każdy restart kasuje postęp gry.
-6. Ustaw domenę i wdróż.
-7. Sprawdź adres `/zdrowie`. Powinien zwrócić `{"ok":true,...}`.
+## How the game works
 
-Opcjonalne zmienne: `PORT` (domyślnie 3000), `DATA_DIR` (domyślnie /data w kontenerze), `STREFA` (domyślnie Europe/Warsaw).
+- **Earning amber.** Guilds visit staffed checkpoints, where the staff member scores the task, answer questions at unstaffed checkpoints (text or a photo, reviewed by staff) and type in codes from hidden cards.
+- **Building a fleet.** Ships have three stats (strength, range, agility) and buildings give bonuses to later rewards. Players choose what to buy.
+- **Attacking ports.** Each port is defended differently against each of three tactics. The app shows the chance of success before the dice roll. A failed attack raises that port's defence, so blind retries stop paying off.
+- **SET mini-game.** From the third port on, a guild can play a quick round of SET before attacking to gain a bonus.
 
-### Punkty martwe i znajdźki
+The full rulebook for players is in [docs/instrukcja-dla-gildii.pdf](docs/instrukcja-dla-gildii.pdf) (Polish).
 
-Znajdźki zalicza się kodem z kartki (od razu). Punkt martwy: gildia wysyła odpowiedź tekstem, zdjęciem albo jednym i drugim, a kadra sprawdza zgłoszenie w zakładce **Zgłoszenia** (widzi pytanie i poprawną odpowiedź). „Zalicz” dolicza nagrodę z bonusami, „Odrzuć” zużywa jedną z prób i wysyła gildii powód. Gildia dostaje powiadomienie w ciągu kilku sekund. Ustawienie `martwy_auto` na „tak” zalicza od razu tekst zgodny z odpowiedzią (mniej pracy dla kadry). Zdjęcia leżą w `/data/zdjecia`, kadra usuwa je jednym przyciskiem w zakładce Gra. Nadzór ostrzega, gdy zgłoszenie czeka dłużej niż 4 minuty.
+## Staff panel
 
-### Set (premia do ataku)
+The same app has views for checkpoint staff and for the game master.
 
-Minigra na wzór SET, grana przy ataku. Od portu `zestawy_od_portu` (3), gdy gildia wybierze taktykę, okno ataku proponuje „Gramy w Seta, potem atak” albo „Atakujemy od razu”. Plansza ma 8 kart i na start 2–4 sety; znaleziony set znika i wchodzą nowe karty, tak żeby zawsze był co najmniej jeden set (prawie zawsze dwa). Czas `zestawy_czas_s` (60 s), zła trójka to `zestawy_kara_s` (3 s) blokady. Każdy set daje `zestawy_premia` (+2) do tego ataku, liczy się najwyżej `zestawy_max` (3). Po czasie albo „Kończymy” od razu następuje rzut kośćmi z premią; gdy telefon zamknięto w trakcie, serwer kończy grę i wykonuje atak sam. Czas, blokadę i premię liczy serwer. W aplikacji jest objaśnienie z przykładami i trening bez punktów. Obrona portów 3–10 jest wyższa o 4, żeby premia nie rozregulowała balansu.
+<img src="docs/img/staff-oversight.png" width="700" alt="Staff oversight panel with pre-game checklist and guild table">
 
-### Ranking
+- **Oversight rules** flag inactive guilds, long debts, losing streaks, checkpoints with many wrong answers and the game's pace compared with the simulated plan.
+- **AI report** (optional): every 15 minutes the game state goes to the Anthropic or OpenAI API, and staff get a short list of what needs action now.
+- Submission review, ranking, event log, manual corrections, CSV/JSON export and a post-game survey.
 
-Domyślnie ranking widzi tylko kadra (`ranking_dla_gildii` na „nie”). Po włączeniu gildie widzą ranking i miejsce, a `ukryj_ranking_min` chowa je na ostatnie minuty gry.
+## Design and balancing
 
-Przycisk **„Przywróć domyślny cennik”** (zakładka Cennik) wczytuje statki, budowle, porty i liczby z nowej wersji aplikacji, zostawiając gildie, hasła, punkty, kody i godziny.
+Before the game the economy (prices, rewards, port defences) was tuned with simulated games. The oversight panel compares the real pace with that plan, and staff can change prices and give bonuses live when the game runs slower or faster than expected.
 
-### Konto testowe
+What players said they liked most: the app itself, clear rules and not having to carry a paper patrol card. What they would change: more buildings and ships to buy, and more hidden cards.
 
-Hasło z ustawienia `haslo_testowe` (domyślnie `test-zmien-mnie`) otwiera osobne konto do prób: 500 bursztynu na start, działa o każdej porze, nie trafia do rankingu, dziennika ani kolejki zgłoszeń. Na górze ma przyciski: +200 bursztynu, wybór następnego portu, zaliczenie punktu żywego i „Od nowa”. Punkty martwe sprawdzają się tam same. Puste hasło wyłącza konto.
+## Tech
 
-### Nadzór i analiza AI
+- Node.js 20+, **no external dependencies**, one process, state kept in JSON files with atomic writes.
+- Mobile-first single-page app in plain JavaScript (`public/index.html`).
+- Dockerfile; deployed with Coolify.
+- 30 automated tests: `npm test` (Node's built-in test runner).
 
-Zakładka **Nadzór** w widoku kadry działa bez żadnych ustawień. Reguły sprawdzają na bieżąco: gildie bez kontaktu, gildie w tyle albo podejrzanie szybkie, długi dług, serie porażek, punkty martwe z dużą liczbą złych odpowiedzi (z najczęstszą złą odpowiedzią), błędne kody znajdziek, punkty żywe, które dawno nic nie wpisały, różnice w ocenianiu i tempo całej gry w porównaniu z symulacją. Przed grą pokazuje listę rzeczy do uzupełnienia.
+Built with AI-assisted development (Claude Code): I designed the game and ran it live, and most of the code was written with Claude Code under my direction.
 
-Raport AI jest opcjonalny. W Coolify dodaj zmienną **OPENAI_API_KEY** (klucz z platform.openai.com) albo **ANTHROPIC_API_KEY** (console.anthropic.com); gdy są oba, używany jest Anthropic. W Nadzorze pojawia się „Raport AI”: stan gry, kto jak sobie radzi i co zrobić teraz. Robi się na przycisk i automatycznie co `AI_CO_MIN` minut w trakcie gry (domyślnie 15, 0 wyłącza; automat działa przy `pilnuj_godzin` na „tak”). Model ustawia `OPENAI_MODEL` (domyślnie `gpt-5-mini`) albo `ANTHROPIC_MODEL` (domyślnie `claude-sonnet-5-5`). Do AI trafia stan gry i ostatnie wpisy dziennika, bez haseł.
+## Running locally
 
-Informacje, kto był w aplikacji, serwer trzyma tylko w pamięci, więc po restarcie liczą się od nowa.
-
-## Pierwsze uruchomienie
-
-1. Wejdź na stronę i zaloguj się hasłem kadry.
-2. Zakładka **Cennik**:
-   - **Gildie i hasła**: nazwy gildii i hasło dla każdej. Hasła muszą być różne. Przyciski „Dodaj wiersz” i „Usuń ostatni” zmieniają liczbę gildii.
-   - **Ustawienia**: `haslo_punktowych`, godziny gry, zakres oceny punktu żywego (`zywy_min`, `zywy_max`), ile razy gildia może przyjść na ten sam punkt żywy (`zywy_wizyty`, 0 oznacza bez limitu), czy między wizytami musi zaliczyć inny punkt (`zywy_inny_punkt`) i opcjonalna przerwa w minutach (`zywy_przerwa_min`, 0 wyłącza). `ukryj_ranking_min` ustawia, na ile minut przed końcem gildie przestają widzieć ranking (0 wyłącza). Działa tylko przy `pilnuj_godzin` na „tak”; kadra widzi ranking zawsze.
-   - **Punkty martwe**: nazwa, pytanie (pokazuje się gildiom), poprawna odpowiedź i nagroda, osobno dla każdego punktu.
-   - **Punkty żywe**: nazwy. Punkty nie mają godzin: punktowy zalicza zadanie wtedy, kiedy gildia przyjdzie.
-   - **Kody znajdziek**: jeden kod w wierszu.
-3. Zrób próbę: zaloguj się jako gildia i jako punktowy, kup coś, zaatakuj, zalicz punkt.
-4. Przed grą: w **Ustawieniach** przestaw `pilnuj_godzin` na „tak”, a w zakładce **Gra** wyzeruj grę (słowo RESET).
-
-Wielkość liter i polskie znaki w odpowiedziach oraz kodach nie mają znaczenia.
-
-## Role
-
-| Hasło | Co widzi |
-| --- | --- |
-| hasło gildii | swój skarbiec, flotę, zakupy, atak na port, punkty, dziennik, ranking |
-| hasło punktowych | lista gildii i pole na ocenę zadania (liczba bursztynów z ustalonego zakresu) dla wybranego punktu żywego |
-| hasło kadry | ranking ze szczegółami, pełny dziennik, poprawki (korekta bursztynu i edycja gildii), cennik, eksport, wyzerowanie gry |
-
-## W trakcie gry
-
-- **Pomyłka punktowego albo reklamacja:** zakładka Poprawki. Korekta bursztynu: liczba dodatnia dodaje, ujemna odejmuje.
-- **Awaria albo większa pomyłka:** zakładka Poprawki, część „Edycja gildii”. Można ustawić bursztyn, liczbę portów, statki, budowle, zaliczone punkty i znajdźki. Każda zmiana trafia do dziennika.
-- **Kopia zapasowa:** zakładka Gra, eksport dziennika (CSV) i pełnego stanu (JSON). Warto pobrać raz w połowie gry i raz na koniec.
-- **Zmiana ceny lub odpowiedzi:** zakładka Cennik. Działa od razu po zapisaniu.
-
-## Pliki danych
-
-W katalogu danych: `config.json` (cennik i hasła, powstaje po pierwszym zapisie w Cenniku), `state.json` (stan gildii), `dziennik.jsonl` (wszystkie zdarzenia, jedno w wierszu), `zgloszenia.json` i katalog `zdjecia/` (znajdźki ze zdjęciem). Wyzerowanie gry zapisuje poprzedni stan w podkatalogu `kopia-...`.
-
-## Uruchomienie lokalne i testy
-
-```
-HASLO_KADRY=moje-haslo node server.js      # http://localhost:3000
-npm test                                    # zasady gry i serwer
+```bash
+HASLO_KADRY=your-staff-password npm start   # http://localhost:3000
 ```
 
-Testy obejmują zasady (scenariusze, odmowy, godziny, 400 losowych gier) oraz serwer (role, akcje, trwałość po restarcie, eksport, wyzerowanie).
+Log in with the staff password, then set guild names and passwords in the **Cennik** tab. The full setup and deployment guide is in [docs/WDROZENIE.md](docs/WDROZENIE.md) (Polish).
 
-## Zasady w kodzie
-
-Wszystkie zasady są w `engine.js`. Liczby (ceny, obrona portów, nagrody) są w `config.default.json` i w zakładce Cennik.
+Author: [Maciej Karwik](https://github.com/mkarwik)
